@@ -1,5 +1,5 @@
 import { indicators } from "@/lib/indicators";
-import { getCascadeForCategory } from "@/lib/cascade-config";
+import { getCascadeForCategory, AGE_LABELS } from "@/lib/cascade-config";
 
 export type TrendCount = {
   facilityId: number;
@@ -53,6 +53,144 @@ export function getCountableIndicatorsByCategory() {
 export function getLatestPeriod(counts: TrendCount[]): string | null {
   const periods = [...new Set(counts.map((c) => c.period))].sort();
   return periods.at(-1) ?? null;
+}
+
+export function getPriorPeriod(periods: string[], current: string): string | null {
+  const idx = periods.indexOf(current);
+  return idx > 0 ? periods[idx - 1] : null;
+}
+
+/** Programme-wide total trend for one age group (single clear line). */
+export function buildAggregatedAgeTrend(
+  counts: TrendCount[],
+  indicator: string,
+  source: string,
+  stage: string,
+  ageGroup: string,
+  facilityId?: number | ""
+) {
+  const filtered = counts.filter(
+    (c) =>
+      c.indicator === indicator &&
+      c.source === source &&
+      c.stage === stage &&
+      c.ageGroup === ageGroup &&
+      (!facilityId || c.facilityId === facilityId)
+  );
+
+  const byPeriod = new Map<string, number>();
+  for (const c of filtered) {
+    byPeriod.set(c.period, (byPeriod.get(c.period) ?? 0) + c.value);
+  }
+
+  return [...byPeriod.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([period, total]) => ({ period, total }));
+}
+
+export type AgeSnapshot = {
+  ageGroup: string;
+  label: string;
+  value: number;
+  priorValue: number | null;
+  changePct: number | null;
+};
+
+/** Latest vs prior period counts per age — for KPI cards. */
+export function getAgeSnapshots(
+  counts: TrendCount[],
+  indicator: string,
+  source: string,
+  stage: string,
+  period: string,
+  priorPeriod: string | null,
+  facilityId?: number | ""
+): AgeSnapshot[] {
+  return (["Under 5yrs", "Over 5yrs"] as const).map((ageGroup) => {
+    const value = getSnapshotValue(
+      counts,
+      indicator,
+      source,
+      stage,
+      ageGroup,
+      period,
+      facilityId
+    );
+    const priorValue = priorPeriod
+      ? getSnapshotValue(counts, indicator, source, stage, ageGroup, priorPeriod, facilityId)
+      : null;
+    const changePct =
+      priorValue != null && priorValue > 0
+        ? Math.round(((value - priorValue) / priorValue) * 1000) / 10
+        : null;
+    return {
+      ageGroup,
+      label: AGE_LABELS[ageGroup],
+      value,
+      priorValue,
+      changePct,
+    };
+  });
+}
+
+export type FacilityRankRow = {
+  facility: string;
+  children: number;
+  adults: number;
+  total: number;
+};
+
+/** Rank facilities by latest-period total for an indicator. */
+export function buildFacilityRanking(
+  counts: TrendCount[],
+  indicator: string,
+  source: string,
+  stage: string,
+  period: string,
+  facilityNames: Map<number, string>,
+  limit = 10
+): FacilityRankRow[] {
+  const byFacility = new Map<number, { children: number; adults: number }>();
+
+  for (const c of counts.filter(
+    (x) =>
+      x.indicator === indicator &&
+      x.source === source &&
+      x.stage === stage &&
+      x.period === period
+  )) {
+    const row = byFacility.get(c.facilityId) ?? { children: 0, adults: 0 };
+    if (c.ageGroup === "Under 5yrs") row.children += c.value;
+    else if (c.ageGroup === "Over 5yrs") row.adults += c.value;
+    byFacility.set(c.facilityId, row);
+  }
+
+  return [...byFacility.entries()]
+    .map(([id, v]) => ({
+      facility: facilityNames.get(id) ?? String(id),
+      children: v.children,
+      adults: v.adults,
+      total: v.children + v.adults,
+    }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, limit);
+}
+
+/** Compute a rate from two indicators at a snapshot. */
+export function computeIndicatorRate(
+  counts: TrendCount[],
+  numerator: string,
+  denominator: string,
+  source: string,
+  stage: string,
+  ageGroup: string,
+  period: string,
+  facilityId?: number | ""
+): number | null {
+  const num = getSnapshotValue(counts, numerator, source, stage, ageGroup, period, facilityId);
+  const den = getSnapshotValue(counts, denominator, source, stage, ageGroup, period, facilityId);
+  if (den === 0) return null;
+  return Math.round((num / den) * 1000) / 10;
 }
 
 /** Trend series for one age group — never mixes ages. */
@@ -305,3 +443,4 @@ export function buildBeforeAfterData(
     };
   });
 }
+

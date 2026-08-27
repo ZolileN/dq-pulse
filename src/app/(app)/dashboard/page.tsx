@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { facilities, facilityMonthStatus, entries } from "@/lib/db/schema";
-import { count, desc, eq, sql } from "drizzle-orm";
+import { facilities, facilityMonthStatus } from "@/lib/db/schema";
+import { desc, sql } from "drizzle-orm";
 import { PageHeader } from "@/components/page-header";
 import { DashboardAnalytics } from "@/components/trends/dashboard-analytics";
 import {
@@ -14,21 +14,10 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, ArrowRight, Building2, ClipboardList, Lock, Upload } from "lucide-react";
+import { AlertTriangle, ArrowRight } from "lucide-react";
 
 export default async function DashboardPage() {
   const session = await auth();
-
-  const [facilityCount] = await db.select({ n: count() }).from(facilities);
-  const [entryCount] = await db.select({ n: count() }).from(entries);
-  const submitted = await db
-    .select({ n: count() })
-    .from(facilityMonthStatus)
-    .where(eq(facilityMonthStatus.status, "submitted"));
-  const locked = await db
-    .select({ n: count() })
-    .from(facilityMonthStatus)
-    .where(eq(facilityMonthStatus.status, "reviewed_locked"));
 
   const flagged = await db
     .select()
@@ -41,70 +30,25 @@ export default async function DashboardPage() {
     (await db.select().from(facilities)).map((f) => [f.id, f])
   );
 
-  const kpis = [
-    {
-      label: "Facilities",
-      value: facilityCount.n,
-      icon: Building2,
-      description: "NMB programme sites",
-    },
-    {
-      label: "Entry rows",
-      value: entryCount.n,
-      icon: ClipboardList,
-      description: "Total count values captured",
-    },
-    {
-      label: "Awaiting review",
-      value: submitted[0]?.n ?? 0,
-      icon: Upload,
-      description: "Submitted facility-months",
-    },
-    {
-      label: "Locked months",
-      value: locked[0]?.n ?? 0,
-      icon: Lock,
-      description: "Reviewed and locked",
-    },
-  ];
+  const flaggedCount = flagged.length;
 
   return (
     <div className="space-y-8">
       <PageHeader
         title={`Welcome, ${session?.user?.name}`}
-        description="Monitor TB/DS-TB data quality across Nelson Mandela Bay facilities. Click any indicator card to explore by age group, source, and care cascade gaps."
+        description="Monitor TB/DS-TB data quality across Nelson Mandela Bay. KPIs below track screening, testing, and source agreement. Click any indicator to expand the full analysis."
       />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {kpis.map((s) => {
-          const Icon = s.icon;
-          return (
-            <Card key={s.label}>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription>{s.label}</CardDescription>
-                <Icon className="size-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="font-[family-name:var(--font-display)] text-3xl font-semibold">
-                  {s.value}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{s.description}</p>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
 
       <div className="space-y-4">
         <div>
           <h3 className="font-[family-name:var(--font-display)] text-xl font-semibold text-primary">
-            Programme trends — all data elements
+            Programme monitoring
           </h3>
           <p className="text-sm text-muted-foreground">
-            Each card shows separate trend lines for children (under 5) and adults. Click a card to drill down into source comparison and care cascade gaps.
+            DQA metrics and data elements — children and adults shown separately on every card.
           </p>
         </div>
-        <DashboardAnalytics />
+        <DashboardAnalytics flaggedCount={flaggedCount} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
