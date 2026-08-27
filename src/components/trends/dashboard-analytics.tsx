@@ -1,20 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Line, LineChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendFilters } from "@/components/trends/trend-filters";
-import { IndicatorSparkline } from "@/components/trends/indicator-sparkline";
-import {
-  IndicatorDrillDown,
-  useDrillDownPeriods,
-} from "@/components/trends/indicator-drill-down";
+import { IndicatorKpiCard } from "@/components/trends/indicator-kpi-card";
+import { IndicatorDetailView } from "@/components/trends/indicator-detail-view";
+import { DqaKpiStrip } from "@/components/trends/dqa-kpi-strip";
+import { useDrillDownPeriods } from "@/hooks/use-drill-down-periods";
 import {
   getCountableIndicatorsByCategory,
   type TrendCount,
@@ -29,7 +22,11 @@ type SelectedIndicator = {
   dataType: string;
 };
 
-export function DashboardAnalytics() {
+type DashboardAnalyticsProps = {
+  flaggedCount: number;
+};
+
+export function DashboardAnalytics({ flaggedCount }: DashboardAnalyticsProps) {
   const [grain, setGrain] = useState<Grain>("month");
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [facilityId, setFacilityId] = useState<number | "">("");
@@ -75,12 +72,38 @@ export function DashboardAnalytics() {
     [facilities]
   );
 
-  const agreementData = agreement.map((a) => ({
-    period: a.period,
-    rate: a.rate == null ? null : Math.round(a.rate * 1000) / 10,
-  }));
-
   const defaultTab = categories[0]?.dataType ?? "TB cascade";
+
+  if (selected) {
+    return (
+      <div className="space-y-4">
+        <TrendFilters
+          grain={grain}
+          onGrainChange={setGrain}
+          facilities={facilities}
+          facilityId={facilityId}
+          onFacilityChange={setFacilityId}
+          stage={stage}
+          onStageChange={setStage}
+          source={source}
+          onSourceChange={setSource}
+        />
+        <IndicatorDetailView
+          indicator={selected.indicator}
+          dataType={selected.dataType}
+          counts={counts}
+          stage={stage}
+          source={source}
+          facilityNames={facilityNames}
+          facilityId={facilityId}
+          periods={periods}
+          selectedPeriod={snapshotPeriod || latest}
+          onPeriodChange={setSnapshotPeriod}
+          onBack={() => setSelected(null)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -96,52 +119,49 @@ export function DashboardAnalytics() {
         onSourceChange={setSource}
       />
 
-      {!loading && agreementData.length > 0 && (
-        <ChartContainer
-          config={{ rate: { label: "Agreement %", color: "var(--chart-2)" } }}
-          className="h-32 w-full rounded-xl border bg-card p-4"
-        >
-          <p className="mb-2 text-xs font-medium text-muted-foreground">
-            Source agreement rate (before visit)
-          </p>
-          <LineChart data={agreementData} height={80}>
-            <CartesianGrid vertical={false} strokeDasharray="3 3" />
-            <XAxis dataKey="period" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
-            <YAxis unit="%" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} width={36} />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Line type="monotone" dataKey="rate" stroke="var(--chart-2)" strokeWidth={2} dot={false} />
-          </LineChart>
-        </ChartContainer>
-      )}
+      <DqaKpiStrip
+        counts={counts}
+        agreement={agreement}
+        flaggedCount={flaggedCount}
+        source={source}
+        stage={stage}
+        loading={loading}
+      />
 
-      <Tabs defaultValue={defaultTab}>
-        <TabsList className="flex h-auto flex-wrap gap-1">
+      <Tabs defaultValue={defaultTab} className="isolate">
+        <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1 bg-muted/50 p-1">
           {categories.map((cat) => (
-            <TabsTrigger key={cat.dataType} value={cat.dataType} className="text-xs sm:text-sm">
+            <TabsTrigger
+              key={cat.dataType}
+              value={cat.dataType}
+              className="text-xs sm:text-sm"
+            >
               {cat.dataType}
             </TabsTrigger>
           ))}
         </TabsList>
 
         {categories.map((cat) => (
-          <TabsContent key={cat.dataType} value={cat.dataType} className="mt-4">
+          <TabsContent
+            key={cat.dataType}
+            value={cat.dataType}
+            className="mt-0 focus-visible:outline-none"
+          >
             {loading ? (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {Array.from({ length: 8 }).map((_, i) => (
-                  <Skeleton key={i} className="h-44 rounded-xl" />
+                  <Skeleton key={i} className="h-48 rounded-xl" />
                 ))}
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {cat.indicators.map((indicator) => (
-                  <IndicatorSparkline
+                  <IndicatorKpiCard
                     key={indicator}
                     indicator={indicator}
-                    dataType={cat.dataType}
                     counts={counts.filter((c) => c.dataType === cat.dataType)}
                     source={source}
                     stage={stage}
-                    facilityNames={facilityNames}
                     facilityId={facilityId}
                     onSelect={() =>
                       setSelected({ indicator, dataType: cat.dataType })
@@ -153,23 +173,6 @@ export function DashboardAnalytics() {
           </TabsContent>
         ))}
       </Tabs>
-
-      {selected && (
-        <IndicatorDrillDown
-          open={!!selected}
-          onOpenChange={(open) => !open && setSelected(null)}
-          indicator={selected.indicator}
-          dataType={selected.dataType}
-          counts={counts}
-          stage={stage}
-          source={source}
-          facilityNames={facilityNames}
-          facilityId={facilityId}
-          periods={periods}
-          selectedPeriod={snapshotPeriod || latest}
-          onPeriodChange={setSnapshotPeriod}
-        />
-      )}
     </div>
   );
 }
