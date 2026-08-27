@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { requireSession } from "@/lib/auth";
 import { saveEntries, upsertFacility } from "@/lib/entries";
+import { withDstbComputedRows } from "@/lib/dstb-computed";
 import { db } from "@/lib/db";
 import { entries, facilities } from "@/lib/db/schema";
 import { and, eq } from "drizzle-orm";
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
     await saveEntries({
       facilityId,
       periodDate: body.periodDate,
-      rows: body.rows,
+      rows: withDstbComputedRows(body.rows),
       entryMethod: body.isCorrection ? "correction" : body.entryMethod,
       userId: Number(session.user.id),
       metadata: body.metadata,

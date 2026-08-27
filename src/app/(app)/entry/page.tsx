@@ -41,6 +41,12 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { defaultReportingMonth } from "@/lib/default-period";
+import {
+  computeDstbTotal,
+  computeTbTotalAllCases,
+  isDstbComputedIndicator,
+  withDstbComputedRows,
+} from "@/lib/dstb-computed";
 
 type Facility = { id: number; name: string; district: string | null };
 
@@ -112,6 +118,30 @@ export default function EntryPage() {
     return values[cellKey(category, indicator, ageGroup, source, stage)] ?? "";
   }
 
+  function numericVal(indicator: string, ageGroup: string, source: string) {
+    const raw = getVal(indicator, ageGroup, source);
+    if (raw === "") return 0;
+    const n = Number(raw);
+    return Number.isNaN(n) ? 0 : n;
+  }
+
+  function componentValues(ageGroup: string, source: string) {
+    return Object.fromEntries(
+      countable
+        .filter((ind) => !isDstbComputedIndicator(ind.name))
+        .map((ind) => [ind.name, numericVal(ind.name, ageGroup, source)])
+    );
+  }
+
+  function displayVal(indicator: string, ageGroup: string, source: string) {
+    if (category !== "DSTB outcome" || !isDstbComputedIndicator(indicator)) {
+      return getVal(indicator, ageGroup, source);
+    }
+    const values = componentValues(ageGroup, source);
+    if (indicator === "DSTB Total") return String(computeDstbTotal(values));
+    return String(computeTbTotalAllCases(values));
+  }
+
   async function onSave(meta: EntryMetaValues) {
     setSaving(true);
     const rows: {
@@ -127,6 +157,7 @@ export default function EntryPage() {
       if (raw === "" || raw == null) continue;
       const [dataType, indicator, ageGroup, source, st] = key.split("|");
       if (st !== meta.stage) continue;
+      if (isDstbComputedIndicator(indicator)) continue;
       const value = Number(raw);
       if (Number.isNaN(value)) continue;
       rows.push({
@@ -139,8 +170,10 @@ export default function EntryPage() {
       });
     }
 
+    const enrichedRows = withDstbComputedRows(rows);
+
     const byInd = new Map<string, Record<string, number>>();
-    for (const r of rows.filter((x) => x.stage === meta.stage)) {
+    for (const r of enrichedRows.filter((x) => x.stage === meta.stage)) {
       const k = `${r.indicator}|${r.ageGroup}`;
       const b = byInd.get(k) ?? {};
       b[r.source] = r.value;
@@ -185,7 +218,7 @@ export default function EntryPage() {
         isCorrection: meta.isCorrection,
         correctionOfPeriodDate: meta.isCorrection ? meta.correctionOfPeriodDate : null,
         metadata: { staffName: meta.staffName, activity: "Monthly DQA", tbType: "DS-TB" },
-        rows,
+        rows: enrichedRows,
         mismatches,
       }),
     });
@@ -196,7 +229,7 @@ export default function EntryPage() {
       return;
     }
     toast.success(
-      `Saved ${rows.length} values` +
+      `Saved ${enrichedRows.length} values` +
         (mismatches.length
           ? ` — ${mismatches.length} source mismatch(es) flagged`
           : "")
@@ -220,7 +253,7 @@ export default function EntryPage() {
     <div className="space-y-6">
       <PageHeader
         title="Web form entry"
-        description="Enter Before/After counts per indicator × age group × source. Rates are computed later — do not enter them here."
+        description="Enter Before/After counts per indicator × age group × source. Rates and DSTB totals (DSTB Total, TB Total all cases) are calculated automatically."
       />
 
       <Form {...form}>
@@ -391,15 +424,30 @@ export default function EntryPage() {
                           return (
                             <TableCell key={s}>
                               {enabled ? (
-                                <Input
-                                  type="number"
-                                  className="w-24"
-                                  value={getVal(ind.name, age, s)}
-                                  onChange={(e) =>
-                                    setVal(ind.name, age, s, e.target.value)
-                                  }
-                                />
-                              ) : (
+                          isDstbComputedIndicator(ind.name) ? (
+                            <Input
+                              type="number"
+                              className="w-24 bg-muted text-muted-foreground"
+                              value={displayVal(ind.name, age, s)}
+                              readOnly
+                              tabIndex={-1}
+                              title={
+                                ind.name === "DSTB Total"
+                                  ? "Auto: Treatment success + LTFU + Failure + Died + Not evaluated"
+                                  : "Auto: DSTB Total + Transfer out + Rif resistant + MDR"
+                              }
+                            />
+                          ) : (
+                            <Input
+                              type="number"
+                              className="w-24"
+                              value={getVal(ind.name, age, s)}
+                              onChange={(e) =>
+                                setVal(ind.name, age, s, e.target.value)
+                              }
+                            />
+                          )
+                        ) : (
                                 <span className="text-muted-foreground">—</span>
                               )}
                             </TableCell>
