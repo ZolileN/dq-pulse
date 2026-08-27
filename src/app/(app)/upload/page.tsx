@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { AlertTriangle, CheckCircle2, FileSpreadsheet, Upload } from "lucide-react";
+import { AlertTriangle, FileSpreadsheet, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 type Mismatch = {
@@ -25,6 +25,7 @@ type Mismatch = {
 };
 
 export default function UploadPage() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<{
@@ -33,12 +34,16 @@ export default function UploadPage() {
     warnings: string[];
     metadata: Record<string, string | null>;
   } | null>(null);
-  const [result, setResult] = useState<string | null>(null);
+
+  function resetForNextUpload() {
+    setFile(null);
+    setPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
 
   async function run(dryRun: boolean) {
     if (!file) return;
     setLoading(true);
-    setResult(null);
     const form = new FormData();
     form.append("file", file);
     if (dryRun) form.append("dryRun", "true");
@@ -60,16 +65,10 @@ export default function UploadPage() {
         description: `${data.entryCount} rows parsed`,
       });
     } else {
-      setResult(
-        `Imported ${data.entryCount} rows for ${data.metadata?.facilityName} · ${data.periodDate}`
-      );
-      setPreview({
-        entryCount: data.entryCount,
-        mismatches: data.mismatches ?? [],
-        warnings: data.warnings ?? [],
-        metadata: data.metadata ?? {},
+      toast.success("Import complete", {
+        description: `Imported ${data.entryCount} rows for ${data.metadata?.facilityName} · ${data.periodDate}`,
       });
-      toast.success("Import complete");
+      resetForNextUpload();
     }
   }
 
@@ -93,6 +92,7 @@ export default function UploadPage() {
             <Label htmlFor="file">ACC1 workbook</Label>
             <Input
               id="file"
+              ref={fileInputRef}
               type="file"
               accept=".xlsx"
               onChange={(e) => setFile(e.target.files?.[0] ?? null)}
@@ -118,14 +118,6 @@ export default function UploadPage() {
           </div>
         </CardContent>
       </Card>
-
-      {result && (
-        <Alert>
-          <CheckCircle2 />
-          <AlertTitle>Import successful</AlertTitle>
-          <AlertDescription>{result}</AlertDescription>
-        </Alert>
-      )}
 
       {preview && (
         <div className="space-y-4">
