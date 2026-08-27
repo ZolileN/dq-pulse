@@ -23,10 +23,10 @@ type SelectedIndicator = {
 };
 
 type DashboardAnalyticsProps = {
-  flaggedCount: number;
+  flaggedCount?: number;
 };
 
-export function DashboardAnalytics({ flaggedCount }: DashboardAnalyticsProps) {
+export function DashboardAnalytics({ flaggedCount: _flaggedCount }: DashboardAnalyticsProps) {
   const [grain, setGrain] = useState<Grain>("month");
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [facilityId, setFacilityId] = useState<number | "">("");
@@ -121,10 +121,9 @@ export function DashboardAnalytics({ flaggedCount }: DashboardAnalyticsProps) {
 
       <DqaKpiStrip
         counts={counts}
-        agreement={agreement}
-        flaggedCount={flaggedCount}
         source={source}
         stage={stage}
+        facilityId={facilityId}
         loading={loading}
       />
 

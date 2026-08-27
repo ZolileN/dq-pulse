@@ -116,14 +116,7 @@ export function TrendsExplorer() {
         onSourceChange={setSource}
       />
 
-      <DqaKpiStrip
-        counts={counts}
-        agreement={agreement}
-        flaggedCount={0}
-        source={source}
-        stage={stage}
-        loading={loading}
-      />
+      <DqaKpiStrip counts={counts} source={source} stage={stage} loading={loading} />
 
       <Tabs defaultValue={defaultTab} className="isolate">
         <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1 bg-muted/50 p-1">
