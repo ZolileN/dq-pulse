@@ -4,6 +4,7 @@ import {
   normalizeAgeGroup,
   normalizeSource,
 } from "../indicators";
+import { isDstbComputedIndicator, withDstbComputedRows } from "../dstb-computed";
 import type { MismatchFlag } from "../db/schema";
 
 export type ParsedEntry = {
@@ -271,7 +272,7 @@ function parseStageSheet(
       continue;
     }
 
-    if (isSkipRow(b) || isRateIndicator(b)) continue;
+    if (isSkipRow(b) || isRateIndicator(b) || isDstbComputedIndicator(b)) continue;
     if (!b || b.length < 2) continue;
 
     if (layout === "matrix" && columnMap.length) {
@@ -427,5 +428,10 @@ export async function parseDqaWorkbook(
     ...detectMismatches(entries, "after"),
   ];
 
-  return { metadata, entries, mismatches, warnings };
+  return {
+    metadata,
+    entries: withDstbComputedRows(entries),
+    mismatches,
+    warnings,
+  };
 }
