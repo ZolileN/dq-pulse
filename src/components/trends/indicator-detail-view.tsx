@@ -164,10 +164,6 @@ export function IndicatorDetailView({
 
         {inCascade && (
           <TabsContent value="cascade" className="mt-6 space-y-8">
-            <p className="text-sm text-muted-foreground">
-              Each step shows how many clients progressed. Red gaps answer questions like
-              &ldquo;300 headcount but only 50 screened — where are the other 250?&rdquo;
-            </p>
             <div className="grid gap-8 lg:grid-cols-2">
               {AGE_GROUPS.map((ageGroup) => (
                 <div key={ageGroup} className="rounded-xl border bg-card p-5">
