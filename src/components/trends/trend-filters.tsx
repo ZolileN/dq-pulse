@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FacilitySelect } from "@/components/facility-select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatPeriodLabel, type Grain } from "@/lib/trend-utils";
 
@@ -44,11 +45,6 @@ export function TrendFilters({
   onSourceChange,
   compact = false,
 }: TrendFiltersProps) {
-  const selectedFacility =
-    facilityId === ""
-      ? null
-      : facilities.find((f) => f.id === facilityId) ?? null;
-
   return (
     <div
       className={
@@ -97,26 +93,14 @@ export function TrendFilters({
 
       <div className="space-y-2">
         <Label>Facility</Label>
-        <Select
-          value={facilityId === "" ? "all" : String(facilityId)}
+        <FacilitySelect
+          facilities={facilities}
+          value={facilityId}
           onValueChange={(v) =>
             onFacilityChange(v === "all" ? "" : Number(v))
           }
-        >
-          <SelectTrigger className="w-full min-w-[160px]">
-            <SelectValue placeholder="All facilities">
-              {selectedFacility?.name ?? "All facilities"}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All facilities</SelectItem>
-            {facilities.map((f) => (
-              <SelectItem key={f.id} value={String(f.id)}>
-                {f.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          allowAll
+        />
       </div>
 
       <div className="space-y-2">
