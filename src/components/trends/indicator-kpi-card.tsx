@@ -14,19 +14,22 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AGE_CHART_COLORS } from "@/lib/trend-utils";
 import {
+  AGE_CHART_COLORS,
   buildAggregatedAgeTrend,
+  DISPLAY_AGE_LABELS,
   formatPeriodLabel,
   getAgeSnapshots,
   getLatestPeriod,
   getPriorPeriod,
+  resolveEffectiveSource,
   type TrendCount,
 } from "@/lib/trend-utils";
 import { ChevronRight, TrendingDown, TrendingUp } from "lucide-react";
 
 type IndicatorKpiCardProps = {
   indicator: string;
+  dataType: string;
   counts: TrendCount[];
   source: string;
   stage: string;
@@ -37,6 +40,7 @@ type IndicatorKpiCardProps = {
 
 export function IndicatorKpiCard({
   indicator,
+  dataType,
   counts,
   source,
   stage,
@@ -52,14 +56,25 @@ export function IndicatorKpiCard({
   const period = periodProp || latest;
   const prior = getPriorPeriod(periods, period);
 
+  const effectiveSource = resolveEffectiveSource(
+    counts,
+    dataType,
+    indicator,
+    stage,
+    period,
+    source,
+    facilityId
+  );
+
   const snapshots = getAgeSnapshots(
     counts,
     indicator,
-    source,
+    effectiveSource,
     stage,
     period,
     prior,
-    facilityId
+    facilityId,
+    dataType
   );
 
   const hasData = snapshots.some((s) => s.value > 0);
@@ -91,7 +106,8 @@ export function IndicatorKpiCard({
           <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
         </div>
         <CardDescription className="text-[11px]">
-          {formatPeriodLabel(period)} · click to expand
+          {formatPeriodLabel(period)} · {effectiveSource !== source ? `${effectiveSource} · ` : ""}
+          click to expand
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -99,7 +115,7 @@ export function IndicatorKpiCard({
           const trend = buildAggregatedAgeTrend(
             counts,
             indicator,
-            source,
+            effectiveSource,
             stage,
             snap.ageGroup,
             facilityId
@@ -112,7 +128,7 @@ export function IndicatorKpiCard({
             >
               <div className="flex items-baseline justify-between gap-2">
                 <span className="text-[11px] font-medium text-muted-foreground">
-                  {snap.ageGroup === "Under 5yrs" ? "Children" : "Adults"}
+                  {DISPLAY_AGE_LABELS[snap.ageGroup] ?? snap.label}
                 </span>
                 {snap.changePct != null && (
                   <Badge

@@ -221,6 +221,10 @@ export default function EntryPage() {
         metadata: { staffName: meta.staffName, activity: "Monthly DQA", tbType: "DS-TB" },
         rows: enrichedRows,
         mismatches,
+        replaceScope: {
+          dataTypes: [meta.category],
+          stage: meta.stage,
+        },
       }),
     });
     const data = await res.json();

@@ -47,6 +47,12 @@ const entrySchema = z.object({
       })
     )
     .optional(),
+  replaceScope: z
+    .object({
+      dataTypes: z.array(z.string()).optional(),
+      stage: z.enum(["before", "after"]).optional(),
+    })
+    .optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -76,6 +82,7 @@ export async function POST(req: NextRequest) {
       mismatches: body.mismatches,
       isCorrection: body.isCorrection,
       correctionOfPeriodDate: body.correctionOfPeriodDate,
+      replaceScope: body.replaceScope,
     });
 
     return NextResponse.json({ ok: true, facilityId });

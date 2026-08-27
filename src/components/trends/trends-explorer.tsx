@@ -157,6 +157,7 @@ export function TrendsExplorer() {
                   <IndicatorKpiCard
                     key={ind}
                     indicator={ind}
+                    dataType={cat.dataType}
                     counts={counts.filter((c) => c.dataType === cat.dataType)}
                     source={source}
                     stage={stage}
