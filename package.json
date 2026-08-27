@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:migrate": "tsx scripts/migrate.ts",
     "db:seed": "tsx scripts/seed.ts",
+    "db:sync-facilities": "tsx scripts/sync-nmb-facilities.ts",
     "db:backfill": "tsx scripts/backfill.ts",
     "parse:test": "tsx scripts/test-parser.ts"
   },
