@@ -3,21 +3,55 @@
 import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Activity } from "lucide-react";
+
+const loginSchema = z.object({
+  email: z.string().email("Enter a valid email"),
+  password: z.string().min(1, "Password is required"),
+});
+
+type LoginValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("dqm@aurum.org.za");
-  const [password, setPassword] = useState("dqa-demo-2024");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  const form = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "dqm@aurum.org.za",
+      password: "dqa-demo-2024",
+    },
+  });
+
+  async function onSubmit(values: LoginValues) {
     setLoading(true);
     setError("");
     const res = await signIn("credentials", {
-      email,
-      password,
+      email: values.email,
+      password: values.password,
       redirect: false,
     });
     setLoading(false);
@@ -30,63 +64,76 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[var(--background)]">
-      <div className="relative flex flex-1 flex-col justify-center overflow-hidden px-4">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-90"
-          style={{
-            background:
-              "radial-gradient(ellipse 80% 50% at 20% 20%, #d4e8df 0%, transparent 55%), radial-gradient(ellipse 60% 40% at 90% 80%, #e8dcc8 0%, transparent 50%), linear-gradient(165deg, #f7f4ef 0%, #eef3f0 100%)",
-          }}
-        />
-        <div className="relative mx-auto w-full max-w-md">
-          <p className="font-[family-name:var(--font-display)] text-4xl text-[var(--brand)]">
-            Aurum DQA Pulse
-          </p>
-          <p className="mt-2 text-[var(--muted)]">
-            Facility data quality monitoring for TB / DS-TB programmes.
-          </p>
-          <form
-            onSubmit={onSubmit}
-            className="mt-8 space-y-4 border border-[var(--border)] bg-[var(--surface)] p-6 shadow-sm"
-          >
-            <label className="block text-sm">
-              <span className="text-[var(--muted)]">Email</span>
-              <input
-                className="mt-1 w-full border border-[var(--border)] bg-white px-3 py-2"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </label>
-            <label className="block text-sm">
-              <span className="text-[var(--muted)]">Password</span>
-              <input
-                className="mt-1 w-full border border-[var(--border)] bg-white px-3 py-2"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-            </label>
-            {error && (
-              <p className="bg-red-50 px-3 py-2 text-sm text-red-800">{error}</p>
-            )}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-[var(--brand)] px-4 py-2.5 text-white hover:bg-[var(--brand-dark)] disabled:opacity-60"
-            >
-              {loading ? "Signing in…" : "Sign in"}
-            </button>
-            <p className="text-xs text-[var(--muted)]">
-              Demo: dqm@aurum.org.za or merl@aurum.org.za — password{" "}
-              <code>dqa-demo-2024</code>
+    <div className="relative flex min-h-screen flex-col justify-center overflow-hidden px-4">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-accent/30"
+      />
+      <div className="relative mx-auto w-full max-w-md space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+            <Activity className="size-5" />
+          </div>
+          <div>
+            <h1 className="font-[family-name:var(--font-display)] text-3xl font-semibold text-primary">
+              Aurum DQA Pulse
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Facility data quality monitoring for TB / DS-TB programmes
             </p>
-          </form>
+          </div>
         </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Sign in</CardTitle>
+            <CardDescription>Use your programme credentials</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input type="email" autoComplete="email" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" autoComplete="current-password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Signing in…" : "Sign in"}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Demo: dqm@aurum.org.za or merl@aurum.org.za — password{" "}
+                  <code className="rounded bg-muted px-1">dqa-demo-2024</code>
+                </p>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

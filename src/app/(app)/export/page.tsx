@@ -2,18 +2,37 @@
 
 import { useState } from "react";
 import { useSession } from "next-auth/react";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Download, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 
 export default function ExportPage() {
   const { data: session } = useSession();
   const [periodDate, setPeriodDate] = useState("2024-06-01");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   async function download() {
     setError(null);
+    setLoading(true);
     const res = await fetch(`/api/export?periodDate=${periodDate}`);
+    setLoading(false);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      setError(data.error ?? "Export failed");
+      const msg = data.error ?? "Export failed";
+      setError(msg);
+      toast.error(msg);
       return;
     }
     const blob = await res.blob();
@@ -23,56 +42,60 @@ export default function ExportPage() {
     a.download = `dqa-export-${periodDate}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    toast.success("CSV downloaded");
   }
 
   if (session?.user?.role !== "merl_officer") {
     return (
-      <div className="space-y-2">
-        <h1 className="font-[family-name:var(--font-display)] text-3xl text-[var(--brand)]">
-          Power BI export
-        </h1>
-        <p className="text-[var(--muted)]">Only MERL Officers can generate exports.</p>
+      <div className="space-y-4">
+        <PageHeader
+          title="Power BI export"
+          description="Only MERL Officers can generate exports."
+        />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl text-[var(--brand)]">
-          Power BI export
-        </h1>
-        <p className="mt-1 text-[var(--muted)]">
-          Exports reviewed_locked facility-months for the selected period in Power Query long format.
-          MERL transformation is isolated in <code>applyMerlTransformation()</code> (currently pass-through).
-        </p>
-      </div>
+      <PageHeader
+        title="Power BI export"
+        description="Exports reviewed_locked facility-months for the selected period in Power Query long format. MERL transformation is isolated in applyMerlTransformation() (currently pass-through)."
+      />
 
-      <div className="border border-[var(--border)] bg-[var(--surface)] p-5">
-        <label className="text-sm">
-          Month
-          <input
-            type="date"
-            className="ml-2 border border-[var(--border)] px-2 py-1"
-            value={periodDate}
-            onChange={(e) => setPeriodDate(e.target.value)}
-          />
-        </label>
-        <div className="mt-4">
-          <button
-            type="button"
-            onClick={download}
-            className="bg-[var(--brand)] px-4 py-2 text-white hover:bg-[var(--brand-dark)]"
-          >
-            Download CSV
-          </button>
-        </div>
-        {error && (
-          <p className="mt-3 border-l-4 border-[var(--danger)] bg-[var(--danger-bg)] px-3 py-2 text-sm text-[var(--danger)]">
-            {error}
-          </p>
-        )}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-[family-name:var(--font-display)]">
+            Generate CSV
+          </CardTitle>
+          <CardDescription>
+            Select the reporting month to export locked facility data
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="export-period">Month</Label>
+            <Input
+              id="export-period"
+              type="date"
+              value={periodDate}
+              onChange={(e) => setPeriodDate(e.target.value)}
+              className="max-w-xs"
+            />
+          </div>
+          <Button onClick={download} disabled={loading}>
+            <Download className="size-4" />
+            {loading ? "Exporting…" : "Download CSV"}
+          </Button>
+          {error && (
+            <Alert variant="destructive">
+              <AlertTriangle />
+              <AlertTitle>Export failed</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

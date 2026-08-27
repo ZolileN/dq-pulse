@@ -1,7 +1,45 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { getCountableIndicators, indicators, sourceLabel } from "@/lib/indicators";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { toast } from "sonner";
 
 type Facility = { id: number; name: string; district: string | null };
 
@@ -17,19 +55,39 @@ function cellKey(
   return `${dataType}|${indicator}|${ageGroup}|${source}|${stage}`;
 }
 
+const entryMetaSchema = z.object({
+  facilityId: z.string().min(1, "Select a facility"),
+  periodDate: z.string().min(1, "Reporting month is required"),
+  stage: z.enum(["before", "after"]),
+  category: z.string().min(1),
+  staffName: z.string().min(1, "Staff name is required"),
+  isCorrection: z.boolean(),
+  correctionOfPeriodDate: z.string().optional(),
+});
+
+type EntryMetaValues = z.infer<typeof entryMetaSchema>;
+
 export default function EntryPage() {
   const [facilities, setFacilities] = useState<Facility[]>([]);
-  const [facilityId, setFacilityId] = useState<number | "">("");
-  const [periodDate, setPeriodDate] = useState("2024-06-01");
-  const [stage, setStage] = useState<"before" | "after">("before");
-  const [category, setCategory] = useState(indicators.categories[0].dataType);
   const [values, setValues] = useState<Record<string, string>>({});
-  const [staffName, setStaffName] = useState("");
-  const [isCorrection, setIsCorrection] = useState(false);
-  const [correctionOfPeriodDate, setCorrectionOfPeriodDate] = useState("");
-  const [status, setStatus] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+
+  const form = useForm<EntryMetaValues>({
+    resolver: zodResolver(entryMetaSchema),
+    defaultValues: {
+      facilityId: "",
+      periodDate: "2024-06-01",
+      stage: "before",
+      category: indicators.categories[0].dataType,
+      staffName: "",
+      isCorrection: false,
+      correctionOfPeriodDate: "",
+    },
+  });
+
+  const stage = form.watch("stage");
+  const category = form.watch("category");
+  const isCorrection = form.watch("isCorrection");
 
   useEffect(() => {
     fetch("/api/facilities")
@@ -42,12 +100,7 @@ export default function EntryPage() {
     [category]
   );
 
-  function setVal(
-    indicator: string,
-    ageGroup: string,
-    source: string,
-    v: string
-  ) {
+  function setVal(indicator: string, ageGroup: string, source: string, v: string) {
     setValues((prev) => ({
       ...prev,
       [cellKey(category, indicator, ageGroup, source, stage)]: v,
@@ -58,10 +111,8 @@ export default function EntryPage() {
     return values[cellKey(category, indicator, ageGroup, source, stage)] ?? "";
   }
 
-  async function onSave() {
+  async function onSave(meta: EntryMetaValues) {
     setSaving(true);
-    setError(null);
-    setStatus(null);
     const rows: {
       dataType: string;
       ageGroup: string;
@@ -74,7 +125,7 @@ export default function EntryPage() {
     for (const [key, raw] of Object.entries(values)) {
       if (raw === "" || raw == null) continue;
       const [dataType, indicator, ageGroup, source, st] = key.split("|");
-      if (st !== stage) continue;
+      if (st !== meta.stage) continue;
       const value = Number(raw);
       if (Number.isNaN(value)) continue;
       rows.push({
@@ -87,9 +138,8 @@ export default function EntryPage() {
       });
     }
 
-    // Detect mismatches within submitted rows for this stage
     const byInd = new Map<string, Record<string, number>>();
-    for (const r of rows.filter((x) => x.stage === stage)) {
+    for (const r of rows.filter((x) => x.stage === meta.stage)) {
       const k = `${r.indicator}|${r.ageGroup}`;
       const b = byInd.get(k) ?? {};
       b[r.source] = r.value;
@@ -116,9 +166,9 @@ export default function EntryPage() {
           mismatches.push({
             indicator,
             ageGroup,
-            stage,
+            stage: meta.stage,
             sources,
-            message: `Mismatch on ${indicator} (${ageGroup}, ${stage}): ${a}=${sources[a]} vs ${b}=${sources[b]}`,
+            message: `Mismatch on ${indicator} (${ageGroup}, ${meta.stage}): ${a}=${sources[a]} vs ${b}=${sources[b]}`,
           });
         }
       }
@@ -128,12 +178,12 @@ export default function EntryPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        facilityId: Number(facilityId),
-        periodDate,
-        entryMethod: isCorrection ? "correction" : "web_form",
-        isCorrection,
-        correctionOfPeriodDate: isCorrection ? correctionOfPeriodDate : null,
-        metadata: { staffName, activity: "Monthly DQA", tbType: "DS-TB" },
+        facilityId: Number(meta.facilityId),
+        periodDate: meta.periodDate,
+        entryMethod: meta.isCorrection ? "correction" : "web_form",
+        isCorrection: meta.isCorrection,
+        correctionOfPeriodDate: meta.isCorrection ? meta.correctionOfPeriodDate : null,
+        metadata: { staffName: meta.staffName, activity: "Monthly DQA", tbType: "DS-TB" },
         rows,
         mismatches,
       }),
@@ -141,10 +191,10 @@ export default function EntryPage() {
     const data = await res.json();
     setSaving(false);
     if (!res.ok) {
-      setError(data.error ?? "Save failed");
+      toast.error(data.error ?? "Save failed");
       return;
     }
-    setStatus(
+    toast.success(
       `Saved ${rows.length} values` +
         (mismatches.length
           ? ` — ${mismatches.length} source mismatch(es) flagged`
@@ -167,156 +217,206 @@ export default function EntryPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl text-[var(--brand)]">
-          Web form entry
-        </h1>
-        <p className="mt-1 text-[var(--muted)]">
-          Enter Before/After counts per indicator × age group × source. Rates are computed later — do not enter them here.
-        </p>
-      </div>
+      <PageHeader
+        title="Web form entry"
+        description="Enter Before/After counts per indicator × age group × source. Rates are computed later — do not enter them here."
+      />
 
-      <div className="grid gap-3 border border-[var(--border)] bg-[var(--surface)] p-4 sm:grid-cols-2 lg:grid-cols-4">
-        <label className="text-sm">
-          <span className="text-[var(--muted)]">Facility</span>
-          <select
-            className="mt-1 w-full border border-[var(--border)] px-2 py-2"
-            value={facilityId}
-            onChange={(e) => setFacilityId(e.target.value ? Number(e.target.value) : "")}
-          >
-            <option value="">Select…</option>
-            {facilities.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          <span className="text-[var(--muted)]">Reporting month</span>
-          <input
-            type="date"
-            className="mt-1 w-full border border-[var(--border)] px-2 py-2"
-            value={periodDate}
-            onChange={(e) => setPeriodDate(e.target.value)}
-          />
-        </label>
-        <label className="text-sm">
-          <span className="text-[var(--muted)]">Stage</span>
-          <select
-            className="mt-1 w-full border border-[var(--border)] px-2 py-2"
-            value={stage}
-            onChange={(e) => setStage(e.target.value as "before" | "after")}
-          >
-            <option value="before">Before</option>
-            <option value="after">After</option>
-          </select>
-        </label>
-        <label className="text-sm">
-          <span className="text-[var(--muted)]">Category</span>
-          <select
-            className="mt-1 w-full border border-[var(--border)] px-2 py-2"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          >
-            {indicators.categories.map((c) => (
-              <option key={c.dataType} value={c.dataType}>
-                {c.dataType}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm">
-          <span className="text-[var(--muted)]">Staff name</span>
-          <input
-            className="mt-1 w-full border border-[var(--border)] px-2 py-2"
-            value={staffName}
-            onChange={(e) => setStaffName(e.target.value)}
-          />
-        </label>
-        <label className="flex items-end gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={isCorrection}
-            onChange={(e) => setIsCorrection(e.target.checked)}
-          />
-          <span>This is a correction to a locked prior month</span>
-        </label>
-        {isCorrection && (
-          <label className="text-sm">
-            <span className="text-[var(--muted)]">Prior month being corrected</span>
-            <input
-              type="date"
-              className="mt-1 w-full border border-[var(--border)] px-2 py-2"
-              value={correctionOfPeriodDate}
-              onChange={(e) => setCorrectionOfPeriodDate(e.target.value)}
-            />
-          </label>
-        )}
-      </div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSave)} className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-[family-name:var(--font-display)]">
+                Entry metadata
+              </CardTitle>
+              <CardDescription>Facility, period, and staff details</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <FormField
+                control={form.control}
+                name="facilityId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Facility</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select facility" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {facilities.map((f) => (
+                          <SelectItem key={f.id} value={String(f.id)}>
+                            {f.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="periodDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Reporting month</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="stage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Stage</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="before">Before</SelectItem>
+                        <SelectItem value="after">After</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {indicators.categories.map((c) => (
+                          <SelectItem key={c.dataType} value={c.dataType}>
+                            {c.dataType}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="staffName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Staff name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="isCorrection"
+                render={({ field }) => (
+                  <FormItem className="flex items-end gap-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <FormLabel className="!mt-0 cursor-pointer font-normal">
+                      This is a correction to a locked prior month
+                    </FormLabel>
+                  </FormItem>
+                )}
+              />
+              {isCorrection && (
+                <FormField
+                  control={form.control}
+                  name="correctionOfPeriodDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Prior month being corrected</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+            </CardContent>
+          </Card>
 
-      <div className="overflow-x-auto border border-[var(--border)] bg-[var(--surface)]">
-        <table className="min-w-full text-left text-sm">
-          <thead className="bg-[var(--brand-soft)]">
-            <tr>
-              <th className="px-3 py-2">Indicator</th>
-              <th className="px-3 py-2">Age</th>
-              {["register", "summary_sheet", "tier_net", "dhis"].map((s) => (
-                <th key={s} className="px-3 py-2">
-                  {sourceLabel(s)}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {countable.map((ind) =>
-              agesFor(ind).map((age) => (
-                <tr key={`${ind.name}-${age}`} className="border-t border-[var(--border)]">
-                  <td className="px-3 py-2">{ind.name}</td>
-                  <td className="px-3 py-2 whitespace-nowrap">{age}</td>
-                  {["register", "summary_sheet", "tier_net", "dhis"].map((s) => {
-                    const enabled = sourcesFor(ind).includes(s);
-                    return (
-                      <td key={s} className="px-2 py-1">
-                        {enabled ? (
-                          <input
-                            type="number"
-                            className="w-24 border border-[var(--border)] px-2 py-1"
-                            value={getVal(ind.name, age, s)}
-                            onChange={(e) => setVal(ind.name, age, s, e.target.value)}
-                          />
-                        ) : (
-                          <span className="text-[var(--muted)]">—</span>
-                        )}
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-[family-name:var(--font-display)]">
+                Data matrix — {category}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Indicator</TableHead>
+                    <TableHead>Age</TableHead>
+                    {["register", "summary_sheet", "tier_net", "dhis"].map((s) => (
+                      <TableHead key={s}>{sourceLabel(s)}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {countable.map((ind) =>
+                    agesFor(ind).map((age) => (
+                      <TableRow key={`${ind.name}-${age}`}>
+                        <TableCell className="font-medium">{ind.name}</TableCell>
+                        <TableCell className="whitespace-nowrap">{age}</TableCell>
+                        {["register", "summary_sheet", "tier_net", "dhis"].map((s) => {
+                          const enabled = sourcesFor(ind).includes(s);
+                          return (
+                            <TableCell key={s}>
+                              {enabled ? (
+                                <Input
+                                  type="number"
+                                  className="w-24"
+                                  value={getVal(ind.name, age, s)}
+                                  onChange={(e) =>
+                                    setVal(ind.name, age, s, e.target.value)
+                                  }
+                                />
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
 
-      {error && (
-        <div className="border-l-4 border-[var(--danger)] bg-[var(--danger-bg)] px-4 py-3 text-[var(--danger)]">
-          {error}
-        </div>
-      )}
-      {status && (
-        <div className="border-l-4 border-[var(--brand)] bg-[var(--brand-soft)] px-4 py-3">
-          {status}
-        </div>
-      )}
-
-      <button
-        type="button"
-        disabled={!facilityId || saving}
-        onClick={onSave}
-        className="bg-[var(--brand)] px-5 py-2.5 text-white hover:bg-[var(--brand-dark)] disabled:opacity-50"
-      >
-        {saving ? "Saving…" : isCorrection ? "Save correction" : "Save entries"}
-      </button>
+          <Button type="submit" disabled={saving}>
+            {saving ? "Saving…" : isCorrection ? "Save correction" : "Save entries"}
+          </Button>
+        </form>
+      </Form>
     </div>
   );
 }

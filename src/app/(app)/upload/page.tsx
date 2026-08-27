@@ -1,6 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { PageHeader } from "@/components/page-header";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { AlertTriangle, CheckCircle2, FileSpreadsheet, Upload } from "lucide-react";
+import { toast } from "sonner";
 
 type Mismatch = {
   indicator: string;
@@ -20,12 +34,10 @@ export default function UploadPage() {
     metadata: Record<string, string | null>;
   } | null>(null);
   const [result, setResult] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   async function run(dryRun: boolean) {
     if (!file) return;
     setLoading(true);
-    setError(null);
     setResult(null);
     const form = new FormData();
     form.append("file", file);
@@ -34,7 +46,7 @@ export default function UploadPage() {
     const data = await res.json();
     setLoading(false);
     if (!res.ok) {
-      setError(data.error ?? "Upload failed");
+      toast.error(data.error ?? "Upload failed");
       return;
     }
     if (dryRun) {
@@ -43,6 +55,9 @@ export default function UploadPage() {
         mismatches: data.mismatches ?? [],
         warnings: data.warnings ?? [],
         metadata: data.metadata ?? {},
+      });
+      toast.message("Preview ready", {
+        description: `${data.entryCount} rows parsed`,
       });
     } else {
       setResult(
@@ -54,95 +69,123 @@ export default function UploadPage() {
         warnings: data.warnings ?? [],
         metadata: data.metadata ?? {},
       });
+      toast.success("Import complete");
     }
   }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-[family-name:var(--font-display)] text-3xl text-[var(--brand)]">
-          Excel upload
-        </h1>
-        <p className="mt-1 text-[var(--muted)]">
-          Upload a completed ACC1_DS-TB_DQA_tool_v3.xlsx. The parser maps headers dynamically — rates are skipped and recomputed from counts.
-        </p>
-      </div>
+      <PageHeader
+        title="Excel upload"
+        description="Upload a completed ACC1_DS-TB_DQA_tool_v3.xlsx. The parser maps headers dynamically — rates are skipped and recomputed from counts."
+      />
 
-      <div className="border border-[var(--border)] bg-[var(--surface)] p-5">
-        <input
-          type="file"
-          accept=".xlsx"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-        />
-        <div className="mt-4 flex flex-wrap gap-3">
-          <button
-            type="button"
-            disabled={!file || loading}
-            onClick={() => run(true)}
-            className="border border-[var(--border)] px-4 py-2 hover:bg-[var(--brand-soft)] disabled:opacity-50"
-          >
-            Preview parse
-          </button>
-          <button
-            type="button"
-            disabled={!file || loading}
-            onClick={() => run(false)}
-            className="bg-[var(--brand)] px-4 py-2 text-white hover:bg-[var(--brand-dark)] disabled:opacity-50"
-          >
-            {loading ? "Working…" : "Import to database"}
-          </button>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 font-[family-name:var(--font-display)]">
+            <FileSpreadsheet className="size-5" />
+            Upload workbook
+          </CardTitle>
+          <CardDescription>Accepts .xlsx files only</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="file">ACC1 workbook</Label>
+            <Input
+              id="file"
+              type="file"
+              accept=".xlsx"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!file || loading}
+              onClick={() => run(true)}
+            >
+              Preview parse
+            </Button>
+            <Button
+              type="button"
+              disabled={!file || loading}
+              onClick={() => run(false)}
+            >
+              <Upload className="size-4" />
+              {loading ? "Working…" : "Import to database"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-      {error && (
-        <div className="border-l-4 border-[var(--danger)] bg-[var(--danger-bg)] px-4 py-3 text-[var(--danger)]">
-          {error}
-        </div>
-      )}
       {result && (
-        <div className="border-l-4 border-[var(--brand)] bg-[var(--brand-soft)] px-4 py-3">
-          {result}
-        </div>
+        <Alert>
+          <CheckCircle2 />
+          <AlertTitle>Import successful</AlertTitle>
+          <AlertDescription>{result}</AlertDescription>
+        </Alert>
       )}
 
       {preview && (
         <div className="space-y-4">
-          <div className="border border-[var(--border)] bg-[var(--surface)] p-4 text-sm">
-            <p>
-              <strong>Facility:</strong> {preview.metadata.facilityName ?? "—"}
-            </p>
-            <p>
-              <strong>Period:</strong> {preview.metadata.periodDate ?? "—"}
-            </p>
-            <p>
-              <strong>Staff:</strong> {preview.metadata.staffName ?? "—"}
-            </p>
-            <p>
-              <strong>Rows parsed:</strong> {preview.entryCount}
-            </p>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-[family-name:var(--font-display)]">
+                Parse summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
+              <p>
+                <span className="text-muted-foreground">Facility:</span>{" "}
+                {preview.metadata.facilityName ?? "—"}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Period:</span>{" "}
+                {preview.metadata.periodDate ?? "—"}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Staff:</span>{" "}
+                {preview.metadata.staffName ?? "—"}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Rows parsed:</span>{" "}
+                {preview.entryCount}
+              </p>
+            </CardContent>
+          </Card>
 
           {preview.mismatches.length > 0 && (
-            <div className="border-l-4 border-[var(--danger)] bg-[var(--danger-bg)] p-4">
-              <p className="font-semibold text-[var(--danger)]">
+            <Alert variant="destructive">
+              <AlertTriangle />
+              <AlertTitle>
                 Source mismatches flagged — do not treat as “data is correct”
-              </p>
-              <ul className="mt-3 space-y-2 text-sm">
-                {preview.mismatches.map((m, i) => (
-                  <li key={i} className="rounded bg-white/70 px-3 py-2">
-                    {m.message}
-                  </li>
-                ))}
-              </ul>
-            </div>
+              </AlertTitle>
+              <AlertDescription>
+                <ul className="mt-2 space-y-2">
+                  {preview.mismatches.map((m, i) => (
+                    <li key={i} className="rounded-md bg-destructive/10 px-3 py-2">
+                      {m.message}
+                    </li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
           )}
 
           {preview.warnings.length > 0 && (
-            <ul className="text-sm text-[var(--muted)]">
-              {preview.warnings.map((w, i) => (
-                <li key={i}>{w}</li>
-              ))}
-            </ul>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Warnings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-inside list-disc text-sm text-muted-foreground">
+                  {preview.warnings.map((w, i) => (
+                    <li key={i}>{w}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
           )}
         </div>
       )}
