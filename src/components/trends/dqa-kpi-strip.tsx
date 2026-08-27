@@ -5,157 +5,127 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  computeIndicatorRate,
-  type AgreementPoint,
+  AGE_CHART_COLORS,
+  computeProgrammeRatesByAge,
   type TrendCount,
 } from "@/lib/trend-utils";
 import {
-  Activity,
-  AlertTriangle,
-  CheckCircle2,
-  Stethoscope,
-  TestTube2,
-} from "lucide-react";
+  getDashboardKpiRates,
+  formatRateFormula,
+} from "@/lib/dashboard-kpis";
+import { Percent } from "lucide-react";
 
 type DqaKpiStripProps = {
   counts: TrendCount[];
-  agreement: AgreementPoint[];
-  flaggedCount: number;
   source: string;
   stage: string;
+  facilityId?: number | "";
   loading: boolean;
 };
 
+const AGE_ROWS = [
+  { key: "Under 5yrs" as const, label: "Children" },
+  { key: "Over 5yrs" as const, label: "Adults" },
+];
+
 export function DqaKpiStrip({
   counts,
-  agreement,
-  flaggedCount,
   source,
   stage,
+  facilityId,
   loading,
 }: DqaKpiStripProps) {
-  const latestAgreement = agreement.at(-1);
-  const agreementPct =
-    latestAgreement?.rate == null
-      ? null
-      : Math.round(latestAgreement.rate * 1000) / 10;
+  const latestPeriod =
+    [...new Set(counts.map((c) => c.period))].sort().at(-1) ?? "";
 
-  const latestPeriod = [...new Set(counts.map((c) => c.period))].sort().at(-1) ?? "";
+  const rateDefs = getDashboardKpiRates();
 
-  const screeningRate = latestPeriod
-    ? computeIndicatorRate(
-        counts,
-        "TB screening",
-        "Headcount",
-        source,
-        stage,
-        "Over 5yrs",
-        latestPeriod
-      )
-    : null;
+  const kpis = rateDefs.map((def) => {
+    const byAge = latestPeriod
+      ? computeProgrammeRatesByAge(
+          counts,
+          def.numerator,
+          def.denominator,
+          source,
+          stage,
+          latestPeriod,
+          facilityId,
+          def.dataType
+        )
+      : {
+          "Under 5yrs": { rate: null, numerator: 0, denominator: 0 },
+          "Over 5yrs": { rate: null, numerator: 0, denominator: 0 },
+        };
 
-  const genexpertRate = latestPeriod
-    ? computeIndicatorRate(
-        counts,
-        "TB test using GeneXpert",
-        "Client eligible for TB  test",
-        source,
-        stage,
-        "Over 5yrs",
-        latestPeriod
-      )
-    : null;
-
-  const treatmentRate = latestPeriod
-    ? computeIndicatorRate(
-        counts,
-        "DSTB treatment start",
-        "DS-TB Bacteriologically confirmed",
-        source,
-        stage,
-        "Over 5yrs",
-        latestPeriod
-      )
-    : null;
-
-  const kpis = [
-    {
-      label: "TB screening rate",
-      value: screeningRate != null ? `${screeningRate}%` : "—",
-      description: "Adults screened ÷ headcount (latest month)",
-      icon: Stethoscope,
-      highlight: screeningRate != null && screeningRate < 80,
-    },
-    {
-      label: "GeneXpert coverage",
-      value: genexpertRate != null ? `${genexpertRate}%` : "—",
-      description: "Eligible clients tested (latest month)",
-      icon: TestTube2,
-      highlight: genexpertRate != null && genexpertRate < 70,
-    },
-    {
-      label: "Treatment start rate",
-      value: treatmentRate != null ? `${treatmentRate}%` : "—",
-      description: "DSTB starts ÷ confirmed (latest month)",
-      icon: Activity,
-      highlight: false,
-    },
-    {
-      label: "Source agreement",
-      value: agreementPct != null ? `${agreementPct}%` : "—",
-      description: "Register / RMR / TIER / DHIS aligned",
-      icon: CheckCircle2,
-      highlight: agreementPct != null && agreementPct < 90,
-    },
-    {
-      label: "Flagged months",
-      value: String(flaggedCount),
-      description: "Facility-months with source mismatches",
-      icon: AlertTriangle,
-      highlight: flaggedCount > 0,
-    },
-  ];
+    return {
+      id: def.id,
+      label: def.label,
+      formula: formatRateFormula(def),
+      byAge,
+    };
+  });
 
   if (loading) {
     return (
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-24 rounded-xl" />
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-36 rounded-xl" />
         ))}
       </div>
     );
   }
 
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-      {kpis.map((kpi) => {
-        const Icon = kpi.icon;
-        return (
-          <Card
-            key={kpi.label}
-            className={kpi.highlight ? "border-destructive/40 bg-destructive/5" : ""}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1">
-              <CardDescription className="text-xs">{kpi.label}</CardDescription>
-              <Icon
-                className={`size-4 ${kpi.highlight ? "text-destructive" : "text-muted-foreground"}`}
-              />
+    <div className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        ACC1 DS-TB DQA tool v3 rates — children and adults calculated separately
+        from summed counts at the latest period. TB register lists are sourced
+        from TIER.Net / PHCIS / PreHMIS in the workbook.
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        {kpis.map((kpi) => (
+          <Card key={kpi.id}>
+            <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-1">
+              <CardDescription className="line-clamp-2 text-xs leading-tight">
+                {kpi.label}
+              </CardDescription>
+              <Percent className="size-3.5 shrink-0 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums">
-                {kpi.value}
-              </div>
-              <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
-                {kpi.description}
+            <CardContent className="space-y-2">
+              {AGE_ROWS.map(({ key, label }) => {
+                const { rate, numerator, denominator } = kpi.byAge[key];
+                return (
+                  <div
+                    key={key}
+                    className="rounded-md border bg-muted/20 px-2 py-1.5"
+                  >
+                    <p className="text-[10px] font-medium text-muted-foreground">
+                      {label}
+                    </p>
+                    <p
+                      className="font-[family-name:var(--font-display)] text-lg font-semibold tabular-nums leading-tight"
+                      style={{ color: AGE_CHART_COLORS[key] }}
+                    >
+                      {rate != null ? `${rate}%` : "—"}
+                    </p>
+                    <p className="text-[9px] tabular-nums text-muted-foreground/80">
+                      {denominator > 0
+                        ? `${numerator.toLocaleString()} ÷ ${denominator.toLocaleString()}`
+                        : "No data"}
+                    </p>
+                  </div>
+                );
+              })}
+              <p className="text-[10px] leading-tight text-muted-foreground">
+                {kpi.formula}
               </p>
             </CardContent>
           </Card>
-        );
-      })}
+        ))}
+      </div>
     </div>
   );
 }

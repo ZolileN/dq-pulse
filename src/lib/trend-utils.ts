@@ -176,7 +176,143 @@ export function buildFacilityRanking(
     .slice(0, limit);
 }
 
-/** Compute a rate from two indicators at a snapshot. */
+/** Programme-wide rate per ACC1: sum numerators ÷ sum denominators (all age groups & facilities). */
+export type ProgrammeRate = {
+  rate: number | null;
+  numerator: number;
+  denominator: number;
+};
+
+function sumIndicatorForPeriod(
+  counts: TrendCount[],
+  indicator: string,
+  source: string,
+  stage: string,
+  period: string,
+  ageGroup?: string,
+  facilityId?: number | "",
+  dataType?: string
+): number {
+  return counts
+    .filter(
+      (c) =>
+        c.indicator === indicator &&
+        c.source === source &&
+        c.stage === stage &&
+        c.period === period &&
+        (!ageGroup || c.ageGroup === ageGroup) &&
+        (!facilityId || c.facilityId === facilityId) &&
+        (!dataType || c.dataType === dataType)
+    )
+    .reduce((sum, c) => sum + c.value, 0);
+}
+
+function toProgrammeRate(numerator: number, denominator: number): ProgrammeRate {
+  return {
+    numerator,
+    denominator,
+    rate:
+      denominator === 0
+        ? null
+        : Math.round((numerator / denominator) * 1000) / 10,
+  };
+}
+
+/** Programme-wide rate — sums numerators/denominators (ACC1 method, never averaged rates). */
+export function computeProgrammeRate(
+  counts: TrendCount[],
+  numerator: string,
+  denominator: string,
+  source: string,
+  stage: string,
+  period: string,
+  facilityId?: number | "",
+  dataType?: string
+): ProgrammeRate {
+  const num = sumIndicatorForPeriod(
+    counts,
+    numerator,
+    source,
+    stage,
+    period,
+    undefined,
+    facilityId,
+    dataType
+  );
+  const den = sumIndicatorForPeriod(
+    counts,
+    denominator,
+    source,
+    stage,
+    period,
+    undefined,
+    facilityId,
+    dataType
+  );
+
+  return toProgrammeRate(num, den);
+}
+
+/** ACC1 rates per age group — children and adults are never mixed. */
+export function computeProgrammeRatesByAge(
+  counts: TrendCount[],
+  numerator: string,
+  denominator: string,
+  source: string,
+  stage: string,
+  period: string,
+  facilityId?: number | "",
+  dataType?: string
+): Record<"Under 5yrs" | "Over 5yrs", ProgrammeRate> {
+  return {
+    "Under 5yrs": toProgrammeRate(
+      sumIndicatorForPeriod(
+        counts,
+        numerator,
+        source,
+        stage,
+        period,
+        "Under 5yrs",
+        facilityId,
+        dataType
+      ),
+      sumIndicatorForPeriod(
+        counts,
+        denominator,
+        source,
+        stage,
+        period,
+        "Under 5yrs",
+        facilityId,
+        dataType
+      )
+    ),
+    "Over 5yrs": toProgrammeRate(
+      sumIndicatorForPeriod(
+        counts,
+        numerator,
+        source,
+        stage,
+        period,
+        "Over 5yrs",
+        facilityId,
+        dataType
+      ),
+      sumIndicatorForPeriod(
+        counts,
+        denominator,
+        source,
+        stage,
+        period,
+        "Over 5yrs",
+        facilityId,
+        dataType
+      )
+    ),
+  };
+}
+
+/** @deprecated Use computeProgrammeRate for dashboard KPIs */
 export function computeIndicatorRate(
   counts: TrendCount[],
   numerator: string,
