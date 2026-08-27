@@ -2,15 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
+import { FacilitySelect } from "@/components/facility-select";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import {
   Card,
@@ -25,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { defaultReportingMonth } from "@/lib/default-period";
+import { getFacilityName } from "@/components/facility-select";
 
 type Facility = { id: number; name: string };
 type AuditRow = {
@@ -44,6 +39,17 @@ const actionVariant: Record<string, "default" | "secondary" | "outline" | "destr
   export: "secondary",
   delete: "destructive",
 };
+
+function formatAuditEntityId(
+  entityId: string,
+  facilities: Facility[]
+): string {
+  const [facilityPart, ...periodParts] = entityId.split(":");
+  const period = periodParts.join(":");
+  const name = getFacilityName(facilities, facilityPart);
+  if (name && period) return `${name} · ${period}`;
+  return entityId;
+}
 
 export default function AuditPage() {
   const [facilities, setFacilities] = useState<Facility[]>([]);
@@ -85,21 +91,12 @@ export default function AuditPage() {
         <CardContent className="flex flex-wrap items-end gap-4 pt-6">
           <div className="space-y-2">
             <Label>Facility</Label>
-            <Select
-              value={facilityId === "" ? undefined : String(facilityId)}
+            <FacilitySelect
+              facilities={facilities}
+              value={facilityId}
               onValueChange={(v) => setFacilityId(Number(v))}
-            >
-              <SelectTrigger className="min-w-[200px]">
-                <SelectValue placeholder="Select facility" />
-              </SelectTrigger>
-              <SelectContent>
-                {facilities.map((f) => (
-                  <SelectItem key={f.id} value={String(f.id)}>
-                    {f.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              triggerClassName="min-w-[200px]"
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="audit-period">Month</Label>
@@ -134,7 +131,9 @@ export default function AuditPage() {
                   <TableCell>{r.performerName ?? "system"}</TableCell>
                   <TableCell>
                     <Badge variant="outline">{r.entity}</Badge>
-                    <div className="mt-1 text-xs text-muted-foreground">{r.entityId}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {formatAuditEntityId(r.entityId, facilities)}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <Badge variant={actionVariant[r.action] ?? "outline"}>

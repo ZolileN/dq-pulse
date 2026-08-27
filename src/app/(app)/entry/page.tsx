@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { getCountableIndicators, indicators, sourceLabel } from "@/lib/indicators";
 import { PageHeader } from "@/components/page-header";
+import { FacilitySelect } from "@/components/facility-select";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -272,20 +273,12 @@ export default function EntryPage() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Facility</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger className="w-full">
-                          <SelectValue placeholder="Select facility" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {facilities.map((f) => (
-                          <SelectItem key={f.id} value={String(f.id)}>
-                            {f.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FacilitySelect
+                      facilities={facilities}
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      triggerClassName="w-full"
+                    />
                     <FormMessage />
                   </FormItem>
                 )}

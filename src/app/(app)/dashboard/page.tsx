@@ -106,7 +106,7 @@ export default async function DashboardPage() {
                   <Alert key={`${f.facilityId}-${f.periodDate}`} variant="destructive">
                     <AlertTriangle />
                     <AlertTitle>
-                      {fac?.name ?? f.facilityId} · {f.periodDate}
+                      {fac?.name ?? "Unknown facility"} · {f.periodDate}
                     </AlertTitle>
                     <AlertDescription>
                       {n} source mismatch{n === 1 ? "" : "es"} flagged across indicators
