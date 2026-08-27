@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/auto-lock",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/export",
+      "schedule": "30 2 * * *"
+    }
+  ]
+}

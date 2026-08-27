@@ -1,0 +1,217 @@
+{
+  "sources": [
+    { "id": "register", "label": "CIR / TB register", "aliases": ["CIR/TB register", "Tally sheet/TIR/TB register", "Patient file/ TB ID", "Patient file/ TB register"] },
+    { "id": "summary_sheet", "label": "Routine Monthly Report (RMR)", "aliases": ["RMR", "Monthly Summary Sheet", "Routine Monthly report"] },
+    { "id": "tier_net", "label": "TIER.Net", "aliases": ["TIER.Net", "TIER.Net/PHCIS/PreHMIS", "Tier.Net/PHCIS/PreHMIS"] },
+    { "id": "dhis", "label": "DHIS", "aliases": ["DHIS"] }
+  ],
+  "ageGroups": [
+    { "id": "Under 5yrs", "aliases": ["Under 5yrs", "under_5"] },
+    { "id": "Over 5yrs", "aliases": ["Over 5yrs", "Over 5 years", "5yrs & odler", "5yrs & older", "over_5"] },
+    { "id": "All ages", "aliases": ["All ages", "all_ages"] }
+  ],
+  "rates": [
+    {
+      "id": "TB screening rate",
+      "dataType": "TB cascade",
+      "numerator": "TB screening",
+      "denominator": "Headcount",
+      "label": "TB screening rate"
+    },
+    {
+      "id": "TB presumptive rate",
+      "dataType": "TB cascade",
+      "numerator": "Client eligible for TB  test",
+      "denominator": "TB screening",
+      "label": "TB presumptive rate"
+    },
+    {
+      "id": "DSTB confirmation rate",
+      "dataType": "TB cascade",
+      "numerator": "DS-TB Bacteriologically confirmed",
+      "denominator": "TB test using GeneXpert",
+      "label": "DSTB confirmation rate"
+    },
+    {
+      "id": "DSTB Treatment start rate",
+      "dataType": "TB cascade",
+      "numerator": "DSTB treatment start",
+      "denominator": "DS-TB Bacteriologically confirmed",
+      "label": "DSTB Treatment start rate"
+    },
+    {
+      "id": "Initial lost to follow up rate",
+      "dataType": "TB cascade",
+      "numerator": "Number initial lost to follow-up",
+      "denominator": "DS-TB Bacteriologically confirmed",
+      "label": "Initial LTFU rate"
+    },
+    {
+      "id": "TPT  initiation rate",
+      "dataType": "TPT",
+      "numerator": "TB contact start on TPT",
+      "denominator": "TB contact",
+      "label": "TPT initiation rate"
+    },
+    {
+      "id": "PLWHIV on ART started TPT rate",
+      "dataType": "TPT",
+      "numerator": "PLWHIV on ART started TPT",
+      "denominator": "PLWHIV on ART eligible for TPT",
+      "label": "PLWHIV TPT start rate"
+    },
+    {
+      "id": "DSTB Treatment success rate",
+      "dataType": "DSTB outcome",
+      "numerator": "DSTB Treatment success",
+      "denominator": "DSTB Total",
+      "label": "Treatment success rate"
+    },
+    {
+      "id": "DSTB LTFU rate",
+      "dataType": "DSTB outcome",
+      "numerator": "DSTB LTFU",
+      "denominator": "DSTB Total",
+      "label": "LTFU rate"
+    },
+    {
+      "id": "DSTB Treatment Failure rate",
+      "dataType": "DSTB outcome",
+      "numerator": "DSTB Treatment Failure",
+      "denominator": "DSTB Total",
+      "label": "Treatment failure rate"
+    },
+    {
+      "id": "DSTB Died rate",
+      "dataType": "DSTB outcome",
+      "numerator": "DSTB Died",
+      "denominator": "DSTB Total",
+      "label": "Died rate"
+    },
+    {
+      "id": "Not evaluated rate",
+      "dataType": "DSTB outcome",
+      "numerator": "Not evaluated",
+      "denominator": "DSTB Total",
+      "label": "Not evaluated rate"
+    },
+    {
+      "id": "DSTB Transfer out (TFO) rate",
+      "dataType": "DSTB outcome",
+      "numerator": "DSTB Transfer out (TFO)",
+      "denominator": "DSTB Total",
+      "label": "Transfer out rate"
+    }
+  ],
+  "categories": [
+    {
+      "dataType": "TB cascade",
+      "lookBackMonths": 2,
+      "layout": "multi_source_matrix",
+      "indicators": [
+        { "name": "Headcount", "kind": "count", "ageSplit": true },
+        { "name": "TB screening", "kind": "count", "ageSplit": true },
+        { "name": "TB screening rate", "kind": "rate", "ageSplit": true },
+        { "name": "Client eligible for TB  test", "kind": "count", "ageSplit": true },
+        { "name": "TB presumptive rate", "kind": "rate", "ageSplit": true },
+        { "name": "TB test using GeneXpert", "kind": "count", "ageSplit": true },
+        { "name": "DS-TB clinically diagnosed", "kind": "count", "ageSplit": true },
+        { "name": "DS-TB Bacteriologically confirmed", "kind": "count", "ageSplit": true },
+        { "name": "RR-TB bacteriologically confirmed", "kind": "count", "ageSplit": true },
+        { "name": "DSTB confirmation rate", "kind": "rate", "ageSplit": true },
+        { "name": "DSTB treatment start", "kind": "count", "ageSplit": true },
+        { "name": "DSTB Treatment start rate", "kind": "rate", "ageSplit": true },
+        { "name": "Number initial lost to follow-up", "kind": "count", "ageSplit": true },
+        { "name": "Initial lost to follow up rate", "kind": "rate", "ageSplit": true },
+        { "name": "NHLS ALERTS DS-TB", "kind": "count", "ageSplit": true }
+      ]
+    },
+    {
+      "dataType": "TPT",
+      "lookBackMonths": 2,
+      "layout": "multi_source_matrix",
+      "indicators": [
+        { "name": "TB contact", "kind": "count", "ageSplit": true },
+        { "name": "TB contact start on TPT", "kind": "count", "ageSplit": true },
+        { "name": "TPT  initiation rate", "kind": "rate", "ageSplit": true },
+        { "name": "PLWHIV on ART eligible for TPT", "kind": "count", "ageSplit": false },
+        { "name": "PLWHIV on ART started TPT", "kind": "count", "ageSplit": false },
+        { "name": "PLWHIV on ART started TPT rate", "kind": "rate", "ageSplit": false }
+      ]
+    },
+    {
+      "dataType": "TB register lists",
+      "lookBackMonths": 7,
+      "layout": "single_source",
+      "defaultSource": "tier_net",
+      "defaultAgeGroup": "All ages",
+      "indicators": [
+        { "name": "TB identification results outstanding list", "kind": "count" },
+        { "name": "Waiting for TB treatment list", "kind": "count" },
+        { "name": "DSTB coversion sputa required list", "kind": "count" },
+        { "name": "DSTB discharge sputa required list", "kind": "count" },
+        { "name": "DSTB outstanding outcomes list", "kind": "count" },
+        { "name": "HIV status missing", "kind": "count" },
+        { "name": "Early missed appointments", "kind": "count" },
+        { "name": "Late missed appointments", "kind": "count" },
+        { "name": "DSTB HIV&ART status (oustanding start)", "kind": "count" },
+        { "name": "Transfer out list", "kind": "count" }
+      ]
+    },
+    {
+      "dataType": "DSTB outcome",
+      "lookBackMonths": 12,
+      "layout": "dual_source",
+      "sources": ["register", "tier_net"],
+      "defaultAgeGroup": "All ages",
+      "indicators": [
+        { "name": "DSTB Treatment success", "kind": "count" },
+        { "name": "DSTB Treatment success rate", "kind": "rate" },
+        { "name": "DSTB LTFU", "kind": "count" },
+        { "name": "DSTB LTFU rate", "kind": "rate" },
+        { "name": "DSTB Treatment Failure", "kind": "count" },
+        { "name": "DSTB Treatment Failure rate", "kind": "rate" },
+        { "name": "DSTB Died", "kind": "count" },
+        { "name": "DSTB Died rate", "kind": "rate" },
+        { "name": "Not evaluated", "kind": "count" },
+        { "name": "Not evaluated rate", "kind": "rate" },
+        { "name": "DSTB Total", "kind": "count" },
+        { "name": "DSTB Transfer out (TFO)", "kind": "count" },
+        { "name": "DSTB Transfer out (TFO) rate", "kind": "rate" },
+        { "name": "TB Rif resistant", "kind": "count" },
+        { "name": "TB MDR", "kind": "count" },
+        { "name": "TB Total all cases", "kind": "count" },
+        { "name": "Duplicates found", "kind": "count" }
+      ]
+    },
+    {
+      "dataType": "DRTB outcome",
+      "lookBackMonths": 24,
+      "layout": "dual_source",
+      "sources": ["register", "tier_net"],
+      "defaultAgeGroup": "All ages",
+      "indicators": [
+        { "name": "DRTB Treatment success", "kind": "count" },
+        { "name": "DRTB LTFU", "kind": "count" },
+        { "name": "DRTB Treatment Failure", "kind": "count" },
+        { "name": "DRTB Died", "kind": "count" },
+        { "name": "DRTB Not evaluated", "kind": "count" },
+        { "name": "DRTB Total", "kind": "count" }
+      ]
+    },
+    {
+      "dataType": "LFLAM",
+      "lookBackMonths": 0,
+      "layout": "simple",
+      "defaultSource": "register",
+      "defaultAgeGroup": "All ages",
+      "indicators": [
+        { "name": "Total eligile for LF LAM test", "kind": "count" },
+        { "name": "People with CD4 <200", "kind": "count" },
+        { "name": "People with tested with ULAM", "kind": "count" },
+        { "name": "People with TB confirmed", "kind": "count" },
+        { "name": "People with started TB treatment", "kind": "count" }
+      ]
+    }
+  ]
+}
