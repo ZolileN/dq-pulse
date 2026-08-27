@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
+import { cn } from "@/lib/utils";
 
 const display = Fraunces({
   variable: "--font-display",
@@ -26,8 +27,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable} h-full`}>
-      <body className="min-h-full font-[family-name:var(--font-sans)] antialiased">
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={cn("h-full", display.variable, sans.variable)}
+    >
+      <body className="min-h-full font-sans antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>
