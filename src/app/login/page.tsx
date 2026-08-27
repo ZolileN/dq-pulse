@@ -41,8 +41,8 @@ export default function LoginPage() {
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "dqm@aurum.org.za",
-      password: "dqa-demo-2024",
+      email: "",
+      password: "",
     },
   });
 
@@ -126,10 +126,6 @@ export default function LoginPage() {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Signing in…" : "Sign in"}
                 </Button>
-                <p className="text-xs text-muted-foreground">
-                  Demo: dqm@aurum.org.za or merl@aurum.org.za — password{" "}
-                  <code className="rounded bg-muted px-1">dqa-demo-2024</code>
-                </p>
               </form>
             </Form>
           </CardContent>

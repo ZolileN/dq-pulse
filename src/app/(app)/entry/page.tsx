@@ -40,6 +40,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { defaultReportingMonth } from "@/lib/default-period";
 
 type Facility = { id: number; name: string; district: string | null };
 
@@ -76,7 +77,7 @@ export default function EntryPage() {
     resolver: zodResolver(entryMetaSchema),
     defaultValues: {
       facilityId: "",
-      periodDate: "2024-06-01",
+      periodDate: defaultReportingMonth(),
       stage: "before",
       category: indicators.categories[0].dataType,
       staffName: "",

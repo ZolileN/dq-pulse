@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/table";
 import { AlertTriangle, Eye, Lock } from "lucide-react";
 import { toast } from "sonner";
+import { defaultReportingMonth } from "@/lib/default-period";
 
 type Row = {
   facilityId: number;
@@ -53,7 +54,7 @@ type Row = {
 
 export default function ReviewPage() {
   const { data: session } = useSession();
-  const [periodDate, setPeriodDate] = useState("2024-06-01");
+  const [periodDate, setPeriodDate] = useState(defaultReportingMonth);
   const [status, setStatus] = useState("submitted");
   const [rows, setRows] = useState<Row[]>([]);
   const [detail, setDetail] = useState<{

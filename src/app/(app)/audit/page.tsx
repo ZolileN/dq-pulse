@@ -24,6 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { defaultReportingMonth } from "@/lib/default-period";
 
 type Facility = { id: number; name: string };
 type AuditRow = {
@@ -47,7 +48,7 @@ const actionVariant: Record<string, "default" | "secondary" | "outline" | "destr
 export default function AuditPage() {
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [facilityId, setFacilityId] = useState<number | "">("");
-  const [periodDate, setPeriodDate] = useState("2024-06-01");
+  const [periodDate, setPeriodDate] = useState(defaultReportingMonth);
   const [rows, setRows] = useState<AuditRow[]>([]);
 
   useEffect(() => {
