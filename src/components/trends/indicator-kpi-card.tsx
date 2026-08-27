@@ -17,49 +17,47 @@ import { Badge } from "@/components/ui/badge";
 import { AGE_CHART_COLORS } from "@/lib/trend-utils";
 import {
   buildAggregatedAgeTrend,
+  formatPeriodLabel,
   getAgeSnapshots,
   getLatestPeriod,
   getPriorPeriod,
   type TrendCount,
 } from "@/lib/trend-utils";
 import { ChevronRight, TrendingDown, TrendingUp } from "lucide-react";
-import { format, parseISO } from "date-fns";
 
 type IndicatorKpiCardProps = {
   indicator: string;
   counts: TrendCount[];
   source: string;
   stage: string;
+  period?: string;
   facilityId?: number | "";
   onSelect?: () => void;
 };
-
-function formatPeriod(period: string) {
-  try {
-    return format(parseISO(period), "MMM yyyy");
-  } catch {
-    return period.slice(0, 7);
-  }
-}
 
 export function IndicatorKpiCard({
   indicator,
   counts,
   source,
   stage,
+  period: periodProp,
   facilityId,
   onSelect,
 }: IndicatorKpiCardProps) {
   const periods = [...new Set(counts.map((c) => c.period))].sort();
-  const latest = getLatestPeriod(counts.filter((c) => c.indicator === indicator)) ?? periods.at(-1) ?? "";
-  const prior = getPriorPeriod(periods, latest);
+  const latest =
+    getLatestPeriod(counts.filter((c) => c.indicator === indicator)) ??
+    periods.at(-1) ??
+    "";
+  const period = periodProp || latest;
+  const prior = getPriorPeriod(periods, period);
 
   const snapshots = getAgeSnapshots(
     counts,
     indicator,
     source,
     stage,
-    latest,
+    period,
     prior,
     facilityId
   );
@@ -93,7 +91,7 @@ export function IndicatorKpiCard({
           <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
         </div>
         <CardDescription className="text-[11px]">
-          {formatPeriod(latest)} · click to expand
+          {formatPeriodLabel(period)} · click to expand
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -154,7 +152,7 @@ export function IndicatorKpiCard({
                     <ChartTooltip
                       content={
                         <ChartTooltipContent
-                          labelFormatter={(v) => formatPeriod(String(v))}
+                          labelFormatter={(v) => formatPeriodLabel(String(v))}
                           formatter={(v) => [Number(v).toLocaleString(), "Total"]}
                         />
                       }

@@ -40,10 +40,14 @@ export function DashboardAnalytics({ flaggedCount: _flaggedCount }: DashboardAna
 
   const categories = useMemo(() => getCountableIndicatorsByCategory(), []);
   const { periods, latest } = useDrillDownPeriods(counts);
+  const reportingPeriod = snapshotPeriod || latest;
 
   useEffect(() => {
-    if (latest && !snapshotPeriod) setSnapshotPeriod(latest);
-  }, [latest, snapshotPeriod]);
+    if (!latest) return;
+    if (!snapshotPeriod || !periods.includes(snapshotPeriod)) {
+      setSnapshotPeriod(latest);
+    }
+  }, [periods, latest, snapshotPeriod]);
 
   useEffect(() => {
     fetch("/api/facilities")
@@ -80,6 +84,9 @@ export function DashboardAnalytics({ flaggedCount: _flaggedCount }: DashboardAna
         <TrendFilters
           grain={grain}
           onGrainChange={setGrain}
+          periods={periods}
+          selectedPeriod={reportingPeriod}
+          onPeriodChange={setSnapshotPeriod}
           facilities={facilities}
           facilityId={facilityId}
           onFacilityChange={setFacilityId}
@@ -97,8 +104,7 @@ export function DashboardAnalytics({ flaggedCount: _flaggedCount }: DashboardAna
           facilityNames={facilityNames}
           facilityId={facilityId}
           periods={periods}
-          selectedPeriod={snapshotPeriod || latest}
-          onPeriodChange={setSnapshotPeriod}
+          selectedPeriod={reportingPeriod}
           onBack={() => setSelected(null)}
         />
       </div>
@@ -110,6 +116,9 @@ export function DashboardAnalytics({ flaggedCount: _flaggedCount }: DashboardAna
       <TrendFilters
         grain={grain}
         onGrainChange={setGrain}
+        periods={periods}
+        selectedPeriod={reportingPeriod}
+        onPeriodChange={setSnapshotPeriod}
         facilities={facilities}
         facilityId={facilityId}
         onFacilityChange={setFacilityId}
@@ -123,6 +132,7 @@ export function DashboardAnalytics({ flaggedCount: _flaggedCount }: DashboardAna
         counts={counts}
         source={source}
         stage={stage}
+        period={reportingPeriod}
         facilityId={facilityId}
         loading={loading}
       />
@@ -161,6 +171,7 @@ export function DashboardAnalytics({ flaggedCount: _flaggedCount }: DashboardAna
                     counts={counts.filter((c) => c.dataType === cat.dataType)}
                     source={source}
                     stage={stage}
+                    period={reportingPeriod}
                     facilityId={facilityId}
                     onSelect={() =>
                       setSelected({ indicator, dataType: cat.dataType })

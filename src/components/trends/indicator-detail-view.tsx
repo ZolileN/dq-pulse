@@ -10,14 +10,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { CascadeFunnelChart } from "@/components/trends/cascade-funnel-chart";
 import { SourceComparisonChart } from "@/components/trends/source-comparison-chart";
 import {
@@ -34,12 +26,12 @@ import {
   buildFacilityRanking,
   buildSourceComparison,
   buildSourceTrendSeries,
+  formatPeriodLabel,
   getAgeSnapshots,
   getPriorPeriod,
   type TrendCount,
 } from "@/lib/trend-utils";
 import { ArrowLeft } from "lucide-react";
-import { format, parseISO } from "date-fns";
 
 type IndicatorDetailViewProps = {
   indicator: string;
@@ -51,17 +43,8 @@ type IndicatorDetailViewProps = {
   facilityId?: number | "";
   periods: string[];
   selectedPeriod: string;
-  onPeriodChange: (period: string) => void;
   onBack: () => void;
 };
-
-function formatPeriod(period: string) {
-  try {
-    return format(parseISO(period), "MMMM yyyy");
-  } catch {
-    return period;
-  }
-}
 
 export function IndicatorDetailView({
   indicator,
@@ -73,7 +56,6 @@ export function IndicatorDetailView({
   facilityId,
   periods,
   selectedPeriod,
-  onPeriodChange,
   onBack,
 }: IndicatorDetailViewProps) {
   const cascadeSteps = getCascadeForCategory(dataType);
@@ -158,7 +140,8 @@ export function IndicatorDetailView({
             {indicator}
           </h2>
           <p className="text-sm text-muted-foreground">
-            {dataType} · {facilityLabel} · {stage} visit · {SOURCE_LABELS[source]}
+            {dataType} · {facilityLabel} · {formatPeriodLabel(selectedPeriod)} ·{" "}
+            {stage} visit · {SOURCE_LABELS[source]}
           </p>
           <div className="flex flex-wrap gap-2">
             {ageSnapshots.map((a) => (
@@ -169,26 +152,6 @@ export function IndicatorDetailView({
             ))}
           </div>
         </div>
-        {periods.length > 0 && (
-          <div className="space-y-1.5">
-            <Label className="text-xs">Reporting period</Label>
-            <Select
-              value={selectedPeriod}
-              onValueChange={(v) => v && onPeriodChange(v)}
-            >
-              <SelectTrigger className="w-44">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {periods.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {formatPeriod(p)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
       </div>
 
       <Tabs defaultValue={defaultTab}>
@@ -201,10 +164,6 @@ export function IndicatorDetailView({
 
         {inCascade && (
           <TabsContent value="cascade" className="mt-6 space-y-8">
-            <p className="text-sm text-muted-foreground">
-              Each step shows how many clients progressed. Red gaps answer questions like
-              &ldquo;300 headcount but only 50 screened — where are the other 250?&rdquo;
-            </p>
             <div className="grid gap-8 lg:grid-cols-2">
               {AGE_GROUPS.map((ageGroup) => (
                 <div key={ageGroup} className="rounded-xl border bg-card p-5">
@@ -273,7 +232,7 @@ export function IndicatorDetailView({
           {!facilityId && facilityRanking.length > 0 && (
             <div className="rounded-xl border bg-card p-5">
               <h3 className="mb-1 font-medium">
-                Facility ranking — {formatPeriod(selectedPeriod)}
+                Facility ranking — {formatPeriodLabel(selectedPeriod)}
               </h3>
               <p className="mb-4 text-sm text-muted-foreground">
                 Which facilities contribute most to this indicator (children vs adults).

@@ -1,5 +1,6 @@
 import { indicators } from "@/lib/indicators";
 import { getCascadeForCategory, AGE_LABELS } from "@/lib/cascade-config";
+import { format, parseISO } from "date-fns";
 
 export type TrendCount = {
   facilityId: number;
@@ -26,6 +27,20 @@ export type AgreementPoint = {
 };
 
 export type Grain = "month" | "quarter" | "year";
+
+export function formatPeriodLabel(period: string, grain: Grain = "month") {
+  try {
+    if (grain === "year") return format(parseISO(period), "yyyy");
+    if (grain === "quarter") {
+      const d = parseISO(period);
+      const q = Math.floor(d.getMonth() / 3) + 1;
+      return `Q${q} ${format(d, "yyyy")}`;
+    }
+    return format(parseISO(period), "MMMM yyyy");
+  } catch {
+    return period.slice(0, 7);
+  }
+}
 
 export const CHART_COLORS = [
   "var(--chart-1)",

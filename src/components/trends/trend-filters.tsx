@@ -9,13 +9,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Grain } from "@/lib/trend-utils";
+import { formatPeriodLabel, type Grain } from "@/lib/trend-utils";
 
 type Facility = { id: number; name: string };
 
 type TrendFiltersProps = {
   grain: Grain;
   onGrainChange: (grain: Grain) => void;
+  periods: string[];
+  selectedPeriod: string;
+  onPeriodChange: (period: string) => void;
   facilities: Facility[];
   facilityId: number | "";
   onFacilityChange: (id: number | "") => void;
@@ -29,6 +32,9 @@ type TrendFiltersProps = {
 export function TrendFilters({
   grain,
   onGrainChange,
+  periods,
+  selectedPeriod,
+  onPeriodChange,
   facilities,
   facilityId,
   onFacilityChange,
@@ -38,12 +44,17 @@ export function TrendFilters({
   onSourceChange,
   compact = false,
 }: TrendFiltersProps) {
+  const selectedFacility =
+    facilityId === ""
+      ? null
+      : facilities.find((f) => f.id === facilityId) ?? null;
+
   return (
     <div
       className={
         compact
           ? "flex flex-wrap items-end gap-3"
-          : "grid gap-4 rounded-xl border bg-card p-4 sm:grid-cols-2 lg:grid-cols-5"
+          : "grid gap-4 rounded-xl border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
       }
     >
       <div className="space-y-2">
@@ -61,6 +72,30 @@ export function TrendFilters({
       </div>
 
       <div className="space-y-2">
+        <Label>Reporting period</Label>
+        <Select
+          value={selectedPeriod || undefined}
+          onValueChange={(v) => v && onPeriodChange(v)}
+          disabled={periods.length === 0}
+        >
+          <SelectTrigger className="w-full min-w-[160px]">
+            <SelectValue placeholder="Select period">
+              {selectedPeriod
+                ? formatPeriodLabel(selectedPeriod, grain)
+                : "Select period"}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {[...periods].reverse().map((p) => (
+              <SelectItem key={p} value={p}>
+                {formatPeriodLabel(p, grain)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
         <Label>Facility</Label>
         <Select
           value={facilityId === "" ? "all" : String(facilityId)}
@@ -69,7 +104,9 @@ export function TrendFilters({
           }
         >
           <SelectTrigger className="w-full min-w-[160px]">
-            <SelectValue placeholder="All facilities" />
+            <SelectValue placeholder="All facilities">
+              {selectedFacility?.name ?? "All facilities"}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All facilities</SelectItem>

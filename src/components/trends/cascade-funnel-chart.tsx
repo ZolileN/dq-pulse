@@ -29,8 +29,6 @@ export function CascadeFunnelChart({
     name: s.indicator.length > 28 ? `${s.indicator.slice(0, 26)}…` : s.indicator,
     fullName: s.indicator,
     value: s.value,
-    gap: s.gapFromPrevious,
-    gapLabel: s.gapLabel,
     rate: s.conversionRate,
   }));
 
@@ -66,9 +64,6 @@ export function CascadeFunnelChart({
                           {payload.rate}% of previous step
                         </p>
                       )}
-                      {payload.gapLabel && (
-                        <p className="text-destructive">{payload.gapLabel}</p>
-                      )}
                     </div>
                   );
                 }}
@@ -85,18 +80,6 @@ export function CascadeFunnelChart({
           </Bar>
         </BarChart>
       </ChartContainer>
-      <div className="mt-2 space-y-1">
-        {steps.map((s, i) => {
-          if (i === 0 || s.gapFromPrevious == null || s.gapFromPrevious <= 0)
-            return null;
-          return (
-            <p key={s.indicator} className="text-xs text-destructive">
-              ↳ {s.gapFromPrevious.toLocaleString()} gap between &ldquo;
-              {steps[i - 1].indicator}&rdquo; and &ldquo;{s.indicator}&rdquo;
-            </p>
-          );
-        })}
-      </div>
     </div>
   );
 }
