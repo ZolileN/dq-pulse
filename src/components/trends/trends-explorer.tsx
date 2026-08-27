@@ -29,8 +29,16 @@ import { PageHeader } from "@/components/page-header";
 import { TrendFilters } from "@/components/trends/trend-filters";
 import { IndicatorSparkline } from "@/components/trends/indicator-sparkline";
 import {
+  IndicatorDrillDown,
+  useDrillDownPeriods,
+} from "@/components/trends/indicator-drill-down";
+import { AGE_LABELS } from "@/lib/cascade-config";
+import {
+  buildAgeTrendSeries,
   buildBeforeAfterData,
   getCountableIndicatorsByCategory,
+  getFacilityKeysForAge,
+  AGE_CHART_COLORS,
   CHART_COLORS,
   type TrendCount,
   type TrendRate,
@@ -51,9 +59,17 @@ export function TrendsExplorer() {
   const [stage, setStage] = useState("before");
   const [source, setSource] = useState("register");
   const [showRate, setShowRate] = useState(false);
+  const [ageGroup, setAgeGroup] = useState("Over 5yrs");
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<{ indicator: string; dataType: string } | null>(null);
+  const [snapshotPeriod, setSnapshotPeriod] = useState("");
 
   const categories = useMemo(() => getCountableIndicatorsByCategory(), []);
+  const { periods, latest } = useDrillDownPeriods(counts);
+
+  useEffect(() => {
+    if (latest && !snapshotPeriod) setSnapshotPeriod(latest);
+  }, [latest, snapshotPeriod]);
 
   useEffect(() => {
     fetch("/api/facilities")
@@ -121,26 +137,48 @@ export function TrendsExplorer() {
   }, [counts, rates, indicator, source, stage, facilityId, showRate, facilityNames]);
 
   const seriesByFacility = useMemo(() => {
-    const map = new Map<string, Record<string, number | string | null>>();
-    for (const row of trendData) {
-      const bucket = map.get(row.period) ?? { period: row.period };
-      bucket[row.facility] = row.value;
-      map.set(row.period, bucket);
+    if (showRate) {
+      const map = new Map<string, Record<string, number | string | null>>();
+      for (const row of trendData) {
+        const bucket = map.get(row.period) ?? { period: row.period };
+        bucket[row.facility] = row.value;
+        map.set(row.period, bucket);
+      }
+      return [...map.values()].sort((a, b) =>
+        String(a.period).localeCompare(String(b.period))
+      );
     }
-    return [...map.values()].sort((a, b) =>
-      String(a.period).localeCompare(String(b.period))
+    return buildAgeTrendSeries(
+      counts,
+      indicator,
+      source,
+      stage,
+      ageGroup,
+      facilityNames,
+      facilityId
     );
-  }, [trendData]);
+  }, [counts, trendData, indicator, source, stage, ageGroup, facilityNames, facilityId, showRate]);
 
   const facilityKeys = useMemo(() => {
-    const s = new Set<string>();
-    for (const row of trendData) s.add(row.facility);
-    return [...s];
-  }, [trendData]);
+    if (showRate) {
+      const s = new Set<string>();
+      for (const row of trendData) s.add(row.facility);
+      return [...s];
+    }
+    return getFacilityKeysForAge(
+      counts,
+      indicator,
+      source,
+      stage,
+      ageGroup,
+      facilityNames,
+      facilityId
+    );
+  }, [counts, trendData, indicator, source, stage, ageGroup, facilityNames, facilityId, showRate]);
 
   const beforeAfter = useMemo(
-    () => buildBeforeAfterData(counts, indicator, source, facilityNames, facilityId),
-    [counts, indicator, source, facilityId, facilityNames]
+    () => buildBeforeAfterData(counts, indicator, source, ageGroup, facilityNames, facilityId),
+    [counts, indicator, source, ageGroup, facilityId, facilityNames]
   );
 
   const agreementData = agreement.map((a) => ({
@@ -179,6 +217,18 @@ export function TrendsExplorer() {
           onSourceChange={setSource}
         />
         <div className="space-y-2">
+          <Label>Age group</Label>
+          <Select value={ageGroup} onValueChange={(v) => v && setAgeGroup(v)}>
+            <SelectTrigger className="min-w-[200px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Under 5yrs">{AGE_LABELS["Under 5yrs"]}</SelectItem>
+              <SelectItem value="Over 5yrs">{AGE_LABELS["Over 5yrs"]}</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
           <Label>Metric</Label>
           <Select value={indicator} onValueChange={(v) => v && setIndicator(v)}>
             <SelectTrigger className="min-w-[200px]">
@@ -212,7 +262,7 @@ export function TrendsExplorer() {
       <Card>
         <CardHeader>
           <CardTitle className="font-[family-name:var(--font-display)]">
-            Trend lines — {indicator}
+            Trend lines — {indicator} ({AGE_LABELS[ageGroup as keyof typeof AGE_LABELS]})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -231,7 +281,7 @@ export function TrendsExplorer() {
                     key={k}
                     type="monotone"
                     dataKey={k}
-                    stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                    stroke={showRate ? CHART_COLORS[i % CHART_COLORS.length] : AGE_CHART_COLORS[ageGroup as keyof typeof AGE_CHART_COLORS]}
                     strokeWidth={2}
                     dot={false}
                   />
@@ -246,7 +296,7 @@ export function TrendsExplorer() {
         <Card>
           <CardHeader>
             <CardTitle className="font-[family-name:var(--font-display)]">
-              Before / After deltas (Over 5yrs)
+              Before / After deltas ({AGE_LABELS[ageGroup as keyof typeof AGE_LABELS]})
             </CardTitle>
             <CardDescription>{indicator}</CardDescription>
           </CardHeader>
@@ -320,11 +370,13 @@ export function TrendsExplorer() {
                   <IndicatorSparkline
                     key={ind}
                     indicator={ind}
+                    dataType={cat.dataType}
                     counts={counts.filter((c) => c.dataType === cat.dataType)}
                     source={source}
                     stage={stage}
                     facilityNames={facilityNames}
                     facilityId={facilityId}
+                    onSelect={() => setSelected({ indicator: ind, dataType: cat.dataType })}
                   />
                 ))}
               </div>
@@ -332,6 +384,23 @@ export function TrendsExplorer() {
           ))}
         </Tabs>
       </div>
+
+      {selected && (
+        <IndicatorDrillDown
+          open={!!selected}
+          onOpenChange={(open) => !open && setSelected(null)}
+          indicator={selected.indicator}
+          dataType={selected.dataType}
+          counts={counts}
+          stage={stage}
+          source={source}
+          facilityNames={facilityNames}
+          facilityId={facilityId}
+          periods={periods}
+          selectedPeriod={snapshotPeriod || latest}
+          onPeriodChange={setSnapshotPeriod}
+        />
+      )}
     </div>
   );
 }

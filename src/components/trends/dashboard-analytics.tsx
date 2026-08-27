@@ -7,17 +7,14 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendFilters } from "@/components/trends/trend-filters";
 import { IndicatorSparkline } from "@/components/trends/indicator-sparkline";
+import {
+  IndicatorDrillDown,
+  useDrillDownPeriods,
+} from "@/components/trends/indicator-drill-down";
 import {
   getCountableIndicatorsByCategory,
   type TrendCount,
@@ -26,6 +23,11 @@ import {
 } from "@/lib/trend-utils";
 
 type Facility = { id: number; name: string };
+
+type SelectedIndicator = {
+  indicator: string;
+  dataType: string;
+};
 
 export function DashboardAnalytics() {
   const [grain, setGrain] = useState<Grain>("month");
@@ -36,8 +38,15 @@ export function DashboardAnalytics() {
   const [stage, setStage] = useState("before");
   const [source, setSource] = useState("register");
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<SelectedIndicator | null>(null);
+  const [snapshotPeriod, setSnapshotPeriod] = useState("");
 
   const categories = useMemo(() => getCountableIndicatorsByCategory(), []);
+  const { periods, latest } = useDrillDownPeriods(counts);
+
+  useEffect(() => {
+    if (latest && !snapshotPeriod) setSnapshotPeriod(latest);
+  }, [latest, snapshotPeriod]);
 
   useEffect(() => {
     fetch("/api/facilities")
@@ -87,60 +96,23 @@ export function DashboardAnalytics() {
         onSourceChange={setSource}
       />
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="font-[family-name:var(--font-display)]">
-              Source agreement rate
-            </CardTitle>
-            <CardDescription>
-              % of indicator×age cells where register / RMR / TIER.Net / DHIS agreed before the visit
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Skeleton className="h-48 w-full" />
-            ) : (
-              <ChartContainer
-                config={{ rate: { label: "Agreement %", color: "var(--chart-2)" } }}
-                className="h-48 w-full"
-              >
-                <LineChart data={agreementData}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" />
-                  <XAxis dataKey="period" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                  <YAxis unit="%" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Line
-                    type="monotone"
-                    dataKey="rate"
-                    stroke="var(--chart-2)"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ChartContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="font-[family-name:var(--font-display)]">
-              Data elements
-            </CardTitle>
-            <CardDescription>
-              {counts.length > 0
-                ? `${new Set(counts.map((c) => c.indicator)).size} indicators with data`
-                : "Loading indicators…"}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            <p>
-              Each tile below shows facility trend lines for one count indicator at the selected grain, stage, and source.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {!loading && agreementData.length > 0 && (
+        <ChartContainer
+          config={{ rate: { label: "Agreement %", color: "var(--chart-2)" } }}
+          className="h-32 w-full rounded-xl border bg-card p-4"
+        >
+          <p className="mb-2 text-xs font-medium text-muted-foreground">
+            Source agreement rate (before visit)
+          </p>
+          <LineChart data={agreementData} height={80}>
+            <CartesianGrid vertical={false} strokeDasharray="3 3" />
+            <XAxis dataKey="period" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} />
+            <YAxis unit="%" tickLine={false} axisLine={false} tick={{ fontSize: 10 }} width={36} />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <Line type="monotone" dataKey="rate" stroke="var(--chart-2)" strokeWidth={2} dot={false} />
+          </LineChart>
+        </ChartContainer>
+      )}
 
       <Tabs defaultValue={defaultTab}>
         <TabsList className="flex h-auto flex-wrap gap-1">
@@ -165,11 +137,15 @@ export function DashboardAnalytics() {
                   <IndicatorSparkline
                     key={indicator}
                     indicator={indicator}
+                    dataType={cat.dataType}
                     counts={counts.filter((c) => c.dataType === cat.dataType)}
                     source={source}
                     stage={stage}
                     facilityNames={facilityNames}
                     facilityId={facilityId}
+                    onSelect={() =>
+                      setSelected({ indicator, dataType: cat.dataType })
+                    }
                   />
                 ))}
               </div>
@@ -177,6 +153,23 @@ export function DashboardAnalytics() {
           </TabsContent>
         ))}
       </Tabs>
+
+      {selected && (
+        <IndicatorDrillDown
+          open={!!selected}
+          onOpenChange={(open) => !open && setSelected(null)}
+          indicator={selected.indicator}
+          dataType={selected.dataType}
+          counts={counts}
+          stage={stage}
+          source={source}
+          facilityNames={facilityNames}
+          facilityId={facilityId}
+          periods={periods}
+          selectedPeriod={snapshotPeriod || latest}
+          onPeriodChange={setSnapshotPeriod}
+        />
+      )}
     </div>
   );
 }

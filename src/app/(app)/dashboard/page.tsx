@@ -46,7 +46,7 @@ export default async function DashboardPage() {
       label: "Facilities",
       value: facilityCount.n,
       icon: Building2,
-      description: "Active sites in programme",
+      description: "NMB programme sites",
     },
     {
       label: "Entry rows",
@@ -72,7 +72,7 @@ export default async function DashboardPage() {
     <div className="space-y-8">
       <PageHeader
         title={`Welcome, ${session?.user?.name}`}
-        description="Monitor TB/DS-TB data quality across facilities — monthly, quarterly, and yearly. Trends below cover every count indicator, like a Power BI dashboard."
+        description="Monitor TB/DS-TB data quality across Nelson Mandela Bay facilities. Click any indicator card to explore by age group, source, and care cascade gaps."
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -93,6 +93,18 @@ export default async function DashboardPage() {
             </Card>
           );
         })}
+      </div>
+
+      <div className="space-y-4">
+        <div>
+          <h3 className="font-[family-name:var(--font-display)] text-xl font-semibold text-primary">
+            Programme trends — all data elements
+          </h3>
+          <p className="text-sm text-muted-foreground">
+            Each card shows separate trend lines for children (under 5) and adults. Click a card to drill down into source comparison and care cascade gaps.
+          </p>
+        </div>
+        <DashboardAnalytics />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -161,18 +173,6 @@ export default async function DashboardPage() {
             )}
           </CardContent>
         </Card>
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <h3 className="font-[family-name:var(--font-display)] text-xl font-semibold text-primary">
-            Programme trends — all data elements
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Small-multiple charts for every count indicator, grouped by data type. Use filters to change grain, facility, stage, and source.
-          </p>
-        </div>
-        <DashboardAnalytics />
       </div>
     </div>
   );
