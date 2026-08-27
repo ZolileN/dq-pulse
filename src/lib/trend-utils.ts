@@ -1,4 +1,9 @@
 import { indicators } from "@/lib/indicators";
+import {
+  getCategoryDef,
+  getDefaultAgeGroupsForCategory,
+  getSourcesForCategory,
+} from "@/lib/indicators";
 import { getCascadeForCategory, AGE_LABELS } from "@/lib/cascade-config";
 import { format, parseISO } from "date-fns";
 
@@ -53,7 +58,81 @@ export const CHART_COLORS = [
 export const AGE_CHART_COLORS = {
   "Under 5yrs": "var(--chart-3)",
   "Over 5yrs": "var(--chart-1)",
+  "All ages": "var(--chart-2)",
 };
+
+const AGE_GROUP_ORDER = ["Under 5yrs", "Over 5yrs", "All ages"];
+
+export const DISPLAY_AGE_LABELS: Record<string, string> = {
+  "Under 5yrs": AGE_LABELS["Under 5yrs"],
+  "Over 5yrs": AGE_LABELS["Over 5yrs"],
+  "All ages": "All ages",
+};
+
+function sortAgeGroups(groups: string[]): string[] {
+  return [...groups].sort((a, b) => {
+    const ia = AGE_GROUP_ORDER.indexOf(a);
+    const ib = AGE_GROUP_ORDER.indexOf(b);
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
+}
+
+/** Pick a source that has data for this category, respecting ACC1 layout defaults. */
+export function resolveEffectiveSource(
+  counts: TrendCount[],
+  dataType: string,
+  indicator: string,
+  stage: string,
+  period: string,
+  preferredSource: string,
+  facilityId?: number | ""
+): string {
+  const allowed = getSourcesForCategory(dataType);
+  const hasValue = (source: string) =>
+    counts.some(
+      (c) =>
+        c.dataType === dataType &&
+        c.indicator === indicator &&
+        c.source === source &&
+        c.stage === stage &&
+        c.period === period &&
+        (!facilityId || c.facilityId === facilityId) &&
+        c.value > 0
+    );
+
+  if (allowed.includes(preferredSource) && hasValue(preferredSource)) {
+    return preferredSource;
+  }
+  for (const source of allowed) {
+    if (hasValue(source)) return source;
+  }
+  if (allowed.includes(preferredSource)) return preferredSource;
+  return getCategoryDef(dataType)?.defaultSource ?? allowed[0] ?? preferredSource;
+}
+
+export function resolveAgeGroupsForIndicator(
+  counts: TrendCount[],
+  indicator: string,
+  source: string,
+  stage: string,
+  period: string,
+  priorPeriod: string | null,
+  facilityId?: number | "",
+  dataType?: string
+): string[] {
+  const fromData = new Set<string>();
+  for (const c of counts) {
+    if (c.indicator !== indicator || c.source !== source || c.stage !== stage) {
+      continue;
+    }
+    if (c.period !== period && c.period !== priorPeriod) continue;
+    if (facilityId && c.facilityId !== facilityId) continue;
+    fromData.add(c.ageGroup);
+  }
+  if (fromData.size > 0) return sortAgeGroups([...fromData]);
+  if (dataType) return getDefaultAgeGroupsForCategory(dataType);
+  return ["Under 5yrs", "Over 5yrs"];
+}
 
 export function getCountableIndicatorsByCategory() {
   return indicators.categories.map((cat) => ({
@@ -119,9 +198,21 @@ export function getAgeSnapshots(
   stage: string,
   period: string,
   priorPeriod: string | null,
-  facilityId?: number | ""
+  facilityId?: number | "",
+  dataType?: string
 ): AgeSnapshot[] {
-  return (["Under 5yrs", "Over 5yrs"] as const).map((ageGroup) => {
+  const ageGroups = resolveAgeGroupsForIndicator(
+    counts,
+    indicator,
+    source,
+    stage,
+    period,
+    priorPeriod,
+    facilityId,
+    dataType
+  );
+
+  return ageGroups.map((ageGroup) => {
     const value = getSnapshotValue(
       counts,
       indicator,
@@ -140,7 +231,7 @@ export function getAgeSnapshots(
         : null;
     return {
       ageGroup,
-      label: AGE_LABELS[ageGroup],
+      label: DISPLAY_AGE_LABELS[ageGroup] ?? ageGroup,
       value,
       priorValue,
       changePct,

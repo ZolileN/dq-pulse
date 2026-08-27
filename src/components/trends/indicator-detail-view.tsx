@@ -26,9 +26,12 @@ import {
   buildFacilityRanking,
   buildSourceComparison,
   buildSourceTrendSeries,
+  DISPLAY_AGE_LABELS,
   formatPeriodLabel,
   getAgeSnapshots,
   getPriorPeriod,
+  resolveAgeGroupsForIndicator,
+  resolveEffectiveSource,
   type TrendCount,
 } from "@/lib/trend-utils";
 import { ArrowLeft } from "lucide-react";
@@ -67,49 +70,99 @@ export function IndicatorDetailView({
   const filtered = counts.filter((c) => c.dataType === dataType);
   const priorPeriod = getPriorPeriod(periods, selectedPeriod);
 
+  const effectiveSource = useMemo(
+    () =>
+      resolveEffectiveSource(
+        filtered,
+        dataType,
+        indicator,
+        stage,
+        selectedPeriod,
+        source,
+        facilityId
+      ),
+    [filtered, dataType, indicator, stage, selectedPeriod, source, facilityId]
+  );
+
   const ageSnapshots = useMemo(
     () =>
       getAgeSnapshots(
         filtered,
         indicator,
-        source,
+        effectiveSource,
         stage,
         selectedPeriod,
         priorPeriod,
-        facilityId
+        facilityId,
+        dataType
       ),
-    [filtered, indicator, source, stage, selectedPeriod, priorPeriod, facilityId]
+    [
+      filtered,
+      indicator,
+      effectiveSource,
+      stage,
+      selectedPeriod,
+      priorPeriod,
+      facilityId,
+      dataType,
+    ]
+  );
+
+  const viewAgeGroups = useMemo(
+    () =>
+      resolveAgeGroupsForIndicator(
+        filtered,
+        indicator,
+        effectiveSource,
+        stage,
+        selectedPeriod,
+        priorPeriod,
+        facilityId,
+        dataType
+      ),
+    [
+      filtered,
+      indicator,
+      effectiveSource,
+      stage,
+      selectedPeriod,
+      priorPeriod,
+      facilityId,
+      dataType,
+    ]
   );
 
   const programmeTrend = useMemo(() => {
-    const childTrend = buildAggregatedAgeTrend(
-      filtered,
-      indicator,
-      source,
-      stage,
-      "Under 5yrs",
-      facilityId
-    );
-    const adultTrend = buildAggregatedAgeTrend(
-      filtered,
-      indicator,
-      source,
-      stage,
-      "Over 5yrs",
-      facilityId
-    );
-    const periodSet = new Set([
-      ...childTrend.map((d) => d.period),
-      ...adultTrend.map((d) => d.period),
-    ]);
-    return [...periodSet]
-      .sort()
-      .map((period) => ({
-        period,
-        children: childTrend.find((d) => d.period === period)?.total ?? null,
-        adults: adultTrend.find((d) => d.period === period)?.total ?? null,
-      }));
-  }, [filtered, indicator, source, stage, facilityId]);
+    const trends = viewAgeGroups.map((ageGroup) => ({
+      ageGroup,
+      series: buildAggregatedAgeTrend(
+        filtered,
+        indicator,
+        effectiveSource,
+        stage,
+        ageGroup,
+        facilityId
+      ),
+    }));
+    const periodSet = new Set(trends.flatMap((t) => t.series.map((d) => d.period)));
+    return [...periodSet].sort().map((period) => {
+      const row: Record<string, string | number | null> = { period };
+      for (const { ageGroup, series } of trends) {
+        row[ageGroup] = series.find((d) => d.period === period)?.total ?? null;
+      }
+      return row;
+    });
+  }, [
+    filtered,
+    indicator,
+    effectiveSource,
+    stage,
+    selectedPeriod,
+    priorPeriod,
+    facilityId,
+    dataType,
+    viewAgeGroups,
+  ]);
 
   const facilityRanking = useMemo(
     () =>
@@ -117,13 +170,21 @@ export function IndicatorDetailView({
         ? buildFacilityRanking(
             filtered,
             indicator,
-            source,
+            effectiveSource,
             stage,
             selectedPeriod,
             facilityNames
           )
         : [],
-    [filtered, indicator, source, stage, selectedPeriod, facilityNames, facilityId]
+    [
+      filtered,
+      indicator,
+      effectiveSource,
+      stage,
+      selectedPeriod,
+      facilityNames,
+      facilityId,
+    ]
   );
 
   const defaultTab = inCascade ? "cascade" : "overview";
@@ -141,12 +202,12 @@ export function IndicatorDetailView({
           </h2>
           <p className="text-sm text-muted-foreground">
             {dataType} · {facilityLabel} · {formatPeriodLabel(selectedPeriod)} ·{" "}
-            {stage} visit · {SOURCE_LABELS[source]}
+            {stage} visit · {SOURCE_LABELS[effectiveSource] ?? effectiveSource}
           </p>
           <div className="flex flex-wrap gap-2">
             {ageSnapshots.map((a) => (
               <Badge key={a.ageGroup} variant="secondary" className="tabular-nums">
-                {a.ageGroup === "Under 5yrs" ? "Children" : "Adults"}:{" "}
+                {DISPLAY_AGE_LABELS[a.ageGroup] ?? a.ageGroup}:{" "}
                 {a.value.toLocaleString()}
               </Badge>
             ))}
@@ -173,7 +234,7 @@ export function IndicatorDetailView({
                       dataType,
                       stage,
                       ageGroup,
-                      source,
+                      effectiveSource,
                       selectedPeriod,
                       facilityId
                     )}
@@ -192,10 +253,17 @@ export function IndicatorDetailView({
               One line per age group — programme-wide aggregate, not per-facility spaghetti.
             </p>
             <ChartContainer
-              config={{
-                children: { label: "Children", color: AGE_CHART_COLORS["Under 5yrs"] },
-                adults: { label: "Adults", color: AGE_CHART_COLORS["Over 5yrs"] },
-              }}
+              config={Object.fromEntries(
+                viewAgeGroups.map((ageGroup) => [
+                  ageGroup,
+                  {
+                    label: DISPLAY_AGE_LABELS[ageGroup] ?? ageGroup,
+                    color:
+                      AGE_CHART_COLORS[ageGroup as keyof typeof AGE_CHART_COLORS] ??
+                      "var(--chart-1)",
+                  },
+                ])
+              )}
               className="h-72 w-full"
             >
               <LineChart data={programmeTrend}>
@@ -209,22 +277,20 @@ export function IndicatorDetailView({
                 <YAxis tickLine={false} axisLine={false} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="children"
-                  name="Children (under 5)"
-                  stroke={AGE_CHART_COLORS["Under 5yrs"]}
-                  strokeWidth={2.5}
-                  dot={{ r: 3 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="adults"
-                  name="Adults (5+)"
-                  stroke={AGE_CHART_COLORS["Over 5yrs"]}
-                  strokeWidth={2.5}
-                  dot={{ r: 3 }}
-                />
+                {viewAgeGroups.map((ageGroup) => (
+                  <Line
+                    key={ageGroup}
+                    type="monotone"
+                    dataKey={ageGroup}
+                    name={DISPLAY_AGE_LABELS[ageGroup] ?? ageGroup}
+                    stroke={
+                      AGE_CHART_COLORS[ageGroup as keyof typeof AGE_CHART_COLORS] ??
+                      "var(--chart-1)"
+                    }
+                    strokeWidth={2.5}
+                    dot={{ r: 3 }}
+                  />
+                ))}
               </LineChart>
             </ChartContainer>
           </div>
@@ -285,7 +351,7 @@ export function IndicatorDetailView({
             highlight data quality issues.
           </p>
           <div className="grid gap-8 lg:grid-cols-2">
-            {AGE_GROUPS.map((ageGroup) => (
+            {viewAgeGroups.map((ageGroup) => (
               <div key={ageGroup} className="rounded-xl border bg-card p-5">
                 <SourceComparisonChart
                   rows={buildSourceComparison(
@@ -297,15 +363,15 @@ export function IndicatorDetailView({
                     facilityId,
                     SOURCE_LABELS
                   )}
-                  ageLabel={AGE_LABELS[ageGroup]}
+                  ageLabel={DISPLAY_AGE_LABELS[ageGroup] ?? ageGroup}
                 />
               </div>
             ))}
           </div>
-          {AGE_GROUPS.map((ageGroup) => (
+          {viewAgeGroups.map((ageGroup) => (
             <div key={`trend-${ageGroup}`} className="rounded-xl border bg-card p-5">
               <h4 className="mb-3 font-medium">
-                Source trends — {AGE_LABELS[ageGroup]}
+                Source trends — {DISPLAY_AGE_LABELS[ageGroup] ?? ageGroup}
               </h4>
               <ChartContainer
                 config={{
@@ -342,9 +408,11 @@ export function IndicatorDetailView({
 
         <TabsContent value="before-after" className="mt-6 space-y-8">
           <div className="grid gap-8 lg:grid-cols-2">
-            {AGE_GROUPS.map((ageGroup) => (
+            {viewAgeGroups.map((ageGroup) => (
               <div key={ageGroup} className="rounded-xl border bg-card p-5">
-                <h4 className="mb-3 font-medium">{AGE_LABELS[ageGroup]}</h4>
+                <h4 className="mb-3 font-medium">
+                  {DISPLAY_AGE_LABELS[ageGroup] ?? ageGroup}
+                </h4>
                 <ChartContainer
                   config={{
                     before: { label: "Before visit", color: "var(--chart-3)" },
@@ -356,7 +424,7 @@ export function IndicatorDetailView({
                     data={buildBeforeAfterData(
                       filtered,
                       indicator,
-                      source,
+                      effectiveSource,
                       ageGroup,
                       facilityNames,
                       facilityId

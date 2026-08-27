@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   entries,
@@ -59,22 +59,30 @@ export async function saveEntries(params: {
   statusOverride?: "submitted" | "reviewed_locked";
   isCorrection?: boolean;
   correctionOfPeriodDate?: string | null;
+  /** Web form: replace only these data types (and optional stage) instead of the full month. */
+  replaceScope?: {
+    dataTypes?: string[];
+    stage?: "before" | "after";
+  };
 }) {
   if (!params.isCorrection) {
     await assertFacilityMonthWritable(params.facilityId, params.periodDate);
   }
 
-  // Replace non-correction entries for this facility-month on fresh submit
+  // Replace entries for this facility-month (full upload) or scoped category (web form)
   if (!params.isCorrection) {
-    await db
-      .delete(entries)
-      .where(
-        and(
-          eq(entries.facilityId, params.facilityId),
-          eq(entries.periodDate, params.periodDate),
-          eq(entries.isCorrection, false)
-        )
-      );
+    const deleteConditions = [
+      eq(entries.facilityId, params.facilityId),
+      eq(entries.periodDate, params.periodDate),
+      eq(entries.isCorrection, false),
+    ];
+    if (params.replaceScope?.dataTypes?.length) {
+      deleteConditions.push(inArray(entries.dataType, params.replaceScope.dataTypes));
+    }
+    if (params.replaceScope?.stage) {
+      deleteConditions.push(eq(entries.stage, params.replaceScope.stage));
+    }
+    await db.delete(entries).where(and(...deleteConditions));
   }
 
   if (params.rows.length) {

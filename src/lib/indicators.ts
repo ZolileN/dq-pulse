@@ -95,3 +95,28 @@ export function getCountableIndicators(): { dataType: string; name: string; ageS
 export function sourceLabel(id: string): string {
   return indicators.sources.find((s) => s.id === id)?.label ?? id;
 }
+
+export function getCategoryDef(dataType: string): CategoryDef | undefined {
+  return indicators.categories.find((c) => c.dataType === dataType);
+}
+
+/** Sources that apply to a programme section (ACC1 layout). */
+export function getSourcesForCategory(dataType: string): string[] {
+  const cat = getCategoryDef(dataType);
+  if (!cat) return indicators.sources.map((s) => s.id);
+  if (cat.sources?.length) return cat.sources;
+  if (cat.layout === "multi_source_matrix") {
+    return indicators.sources.map((s) => s.id);
+  }
+  return [cat.defaultSource ?? "register"];
+}
+
+/** Default age groups when no rows exist yet for an indicator. */
+export function getDefaultAgeGroupsForCategory(dataType: string): string[] {
+  const cat = getCategoryDef(dataType);
+  if (!cat) return ["Under 5yrs", "Over 5yrs"];
+  if (cat.indicators.some((i) => i.ageSplit)) {
+    return ["Under 5yrs", "Over 5yrs"];
+  }
+  return [cat.defaultAgeGroup ?? "All ages"];
+}
