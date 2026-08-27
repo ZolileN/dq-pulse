@@ -16,10 +16,11 @@ import {
 } from "@/components/ui/card";
 import { Download, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { defaultReportingMonth } from "@/lib/default-period";
 
 export default function ExportPage() {
   const { data: session } = useSession();
-  const [periodDate, setPeriodDate] = useState("2024-06-01");
+  const [periodDate, setPeriodDate] = useState(defaultReportingMonth);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 

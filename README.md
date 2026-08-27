@@ -15,12 +15,16 @@ Data quality monitoring platform for The Aurum Institute — replaces the Excel 
 cp .env.example .env.local   # or use existing .env.local
 npm install
 npm run db:migrate
-npm run db:seed
+npm run db:sync-facilities   # NMB facility list
+npm run db:seed              # dev users only (optional)
+npm run db:clear-demo-data   # once, if upgrading from an older seed with synthetic data
 npm run db:backfill          # optional: parse reference/ or a folder of historical xlsx
 npm run dev
 ```
 
-Demo logins (after seed):
+Programme data (counts, rates, dashboard) comes only from **web capture** (`/entry`) and **Excel uploads** (`/upload`), or `db:backfill` for historical workbooks.
+
+Dev logins (after `db:seed`):
 
 - `dqm@aurum.org.za` / `dqa-demo-2024`
 - `merl@aurum.org.za` / `dqa-demo-2024`
