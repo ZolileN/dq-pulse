@@ -22,6 +22,7 @@ type DqaKpiStripProps = {
   counts: TrendCount[];
   source: string;
   stage: string;
+  period: string;
   facilityId?: number | "";
   loading: boolean;
 };
@@ -35,23 +36,21 @@ export function DqaKpiStrip({
   counts,
   source,
   stage,
+  period,
   facilityId,
   loading,
 }: DqaKpiStripProps) {
-  const latestPeriod =
-    [...new Set(counts.map((c) => c.period))].sort().at(-1) ?? "";
-
   const rateDefs = getDashboardKpiRates();
 
   const kpis = rateDefs.map((def) => {
-    const byAge = latestPeriod
+    const byAge = period
       ? computeProgrammeRatesByAge(
           counts,
           def.numerator,
           def.denominator,
           source,
           stage,
-          latestPeriod,
+          period,
           facilityId,
           def.dataType
         )
@@ -82,7 +81,7 @@ export function DqaKpiStrip({
     <div className="space-y-2">
       <p className="text-xs text-muted-foreground">
         ACC1 DS-TB DQA tool v3 rates — children and adults calculated separately
-        from summed counts at the latest period. TB register lists are sourced
+        from summed counts at the selected reporting period. TB register lists are sourced
         from TIER.Net / PHCIS / PreHMIS in the workbook.
       </p>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">

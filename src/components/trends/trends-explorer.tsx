@@ -32,10 +32,14 @@ export function TrendsExplorer() {
 
   const categories = useMemo(() => getCountableIndicatorsByCategory(), []);
   const { periods, latest } = useDrillDownPeriods(counts);
+  const reportingPeriod = snapshotPeriod || latest;
 
   useEffect(() => {
-    if (latest && !snapshotPeriod) setSnapshotPeriod(latest);
-  }, [latest, snapshotPeriod]);
+    if (!latest) return;
+    if (!snapshotPeriod || !periods.includes(snapshotPeriod)) {
+      setSnapshotPeriod(latest);
+    }
+  }, [periods, latest, snapshotPeriod]);
 
   useEffect(() => {
     fetch("/api/facilities")
@@ -72,6 +76,9 @@ export function TrendsExplorer() {
         <TrendFilters
           grain={grain}
           onGrainChange={setGrain}
+          periods={periods}
+          selectedPeriod={reportingPeriod}
+          onPeriodChange={setSnapshotPeriod}
           facilities={facilities}
           facilityId={facilityId}
           onFacilityChange={setFacilityId}
@@ -89,8 +96,7 @@ export function TrendsExplorer() {
           facilityNames={facilityNames}
           facilityId={facilityId}
           periods={periods}
-          selectedPeriod={snapshotPeriod || latest}
-          onPeriodChange={setSnapshotPeriod}
+          selectedPeriod={reportingPeriod}
           onBack={() => setSelected(null)}
         />
       </div>
@@ -107,6 +113,9 @@ export function TrendsExplorer() {
       <TrendFilters
         grain={grain}
         onGrainChange={setGrain}
+        periods={periods}
+        selectedPeriod={reportingPeriod}
+        onPeriodChange={setSnapshotPeriod}
         facilities={facilities}
         facilityId={facilityId}
         onFacilityChange={setFacilityId}
@@ -116,7 +125,14 @@ export function TrendsExplorer() {
         onSourceChange={setSource}
       />
 
-      <DqaKpiStrip counts={counts} source={source} stage={stage} loading={loading} />
+      <DqaKpiStrip
+        counts={counts}
+        source={source}
+        stage={stage}
+        period={reportingPeriod}
+        facilityId={facilityId}
+        loading={loading}
+      />
 
       <Tabs defaultValue={defaultTab} className="isolate">
         <TabsList className="mb-4 flex h-auto w-full flex-wrap justify-start gap-1 bg-muted/50 p-1">
@@ -144,6 +160,7 @@ export function TrendsExplorer() {
                     counts={counts.filter((c) => c.dataType === cat.dataType)}
                     source={source}
                     stage={stage}
+                    period={reportingPeriod}
                     facilityId={facilityId}
                     onSelect={() => setSelected({ indicator: ind, dataType: cat.dataType })}
                   />
